@@ -1,0 +1,279 @@
+/*
+Copyright (C) 2009 Rob van Nieuwpoort & John Romein
+Astron
+P.O.Box 2, 7990 AA Dwingeloo, The Netherlands, nieuwpoort@astron.nl
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+#include "brook_correlator.h"
+
+extern unsigned int nrStations;
+extern unsigned int nrTimes;
+extern unsigned int nrChannels;
+extern unsigned int nrBaselines;
+extern unsigned int nrCells;
+
+
+kernel void correlate_1x1_kernel(unsigned nrTimes, float baselineToStat1[], float baselineToStat2[], 
+			  float4 samples[][][], out float4 visReal<>, out float4 visImag<>)
+{
+  unsigned time;
+  float stat1;
+  float stat2;
+
+  // get the visibility position: x = baseline, y = channel
+  int2 pos = instance().xy;
+  unsigned channel  = (unsigned) pos.x;
+  unsigned baseline = (unsigned) pos.y;
+
+  float xxr = 0.0f, xxi = 0.0f, xyr = 0.0f, xyi = 0.0f, yxr = 0.0f, yxi = 0.0f, yyr = 0.0f, yyi = 0.0f;
+
+  stat1 = baselineToStat1[baseline];
+  stat2 = baselineToStat2[baseline];
+
+  for(time=0; time < nrTimes; ++time) {
+    // load the two samples
+    float4 sample1 = samples[stat1][channel][time];
+    float4 sample2 = samples[stat2][channel][time];
+
+    xxr += sample1.x * sample2.x;
+    xxr += sample1.y * sample2.y;
+    xxi += sample1.y * sample2.x;
+    xxi -= sample1.x * sample2.y;
+
+    xyr += sample1.x * sample2.z;
+    xyr += sample1.y * sample2.w;
+    xyi += sample1.y * sample2.z;
+    xyi -= sample1.x * sample2.w;
+
+    yxr += sample1.z * sample2.x;
+    yxr += sample1.w * sample2.y;
+    yxi += sample1.w * sample2.x;
+    yxi -= sample1.z * sample2.y;
+
+    yyr += sample1.z * sample2.z;
+    yyr += sample1.w * sample2.w;
+    yyi += sample1.w * sample2.z;
+    yyi -= sample1.z * sample2.w;
+  }
+  
+  // and store
+  {
+    float4 reals = {xxr, xyr, yxr, yyr};
+    float4 imags = {xxi, xyi, yxi, yyi};
+    visReal = reals;
+    visImag = imags;
+  }
+}
+
+void correlate_1x1(float* baselineToStat1Host, float* baselineToStat2Host, float* hostSamples, float* hostVisReal, float* hostVisImag)
+{
+  float4 samples<nrStations, nrChannels, nrTimes>;
+  float4 realVis<nrBaselines,nrChannels>;
+  float4 imagVis<nrBaselines,nrChannels>;
+
+  float baselineToStat1<nrBaselines>;
+  float baselineToStat2<nrBaselines>;
+
+  streamRead(baselineToStat1, baselineToStat1Host);
+  streamRead(baselineToStat2, baselineToStat2Host);
+
+  startLoadTimer();
+  streamRead(samples, hostSamples);
+  stopLoadTimer();
+
+  startCorrelateTimer();
+  correlate_1x1_kernel(nrTimes, baselineToStat1, baselineToStat2, samples, realVis, imagVis);
+  stopCorrelateTimer();
+
+  startStoreTimer();
+  streamWrite(realVis, hostVisReal);
+  streamWrite(imagVis, hostVisImag);
+  stopStoreTimer();
+}
+
+kernel void correlate_1x1_vec_kernel(unsigned nrTimesIn, float baselineToStat1[], float baselineToStat2[], 
+			      float4 samples[][][], out float4 visReal<>, out float4 visImag<>)
+{
+  float time;
+  float stat1;
+  float stat2;
+  float nrTimes = (float) nrTimesIn;
+
+  // get the visibility position: x = baseline, y = channel
+  float2 pos = indexof(visReal).xy;
+  float channel = pos.x;
+  float baseline = pos.y;
+
+  float4 r = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 i = {0.0f, 0.0f, 0.0f, 0.0f};
+
+  stat1 = baselineToStat1[baseline];
+  stat2 = baselineToStat2[baseline];
+
+  for(time=0.0f; time < nrTimes; time = time + 1.0f) {
+    // load the two samples
+    float4 sample1 = samples[stat1][channel][time];
+    float4 sample2 = samples[stat2][channel][time];
+
+    r += sample1.xxzz * sample2.xzxz;
+    r += sample1.yyww * sample2.ywyw;
+    i += sample1.yyww * sample2.xzxz;
+    i -= sample1.xxzz * sample2.ywyw;
+  }
+  
+  // and store
+  visReal = r;
+  visImag = i;
+}
+
+void correlate_1x1_vec(float* baselineToStat1Host, float* baselineToStat2Host, float* hostSamples, float* hostVisReal, float* hostVisImag)
+{
+  float4 samples<nrStations, nrChannels, nrTimes>;
+  float4 realVis<nrBaselines,nrChannels>;
+  float4 imagVis<nrBaselines,nrChannels>;
+
+  float baselineToStat1<nrBaselines>;
+  float baselineToStat2<nrBaselines>;
+
+  streamRead(baselineToStat1, baselineToStat1Host);
+  streamRead(baselineToStat2, baselineToStat2Host);
+
+  startLoadTimer();
+  streamRead(samples, hostSamples);
+  stopLoadTimer();
+
+  startCorrelateTimer();
+  correlate_1x1_vec_kernel(nrTimes, baselineToStat1, baselineToStat2, samples, realVis, imagVis);
+  stopCorrelateTimer();
+
+  startStoreTimer();
+  streamWrite(realVis, hostVisReal);
+  streamWrite(imagVis, hostVisImag);
+  stopStoreTimer();
+}
+
+kernel void correlate_2x2_vec_kernel(unsigned nrTimesIn, unsigned nrCellsIn, 
+       float cellToStatX[], float cellToStatY[], 
+			      float4 samples[][][], 
+			      out float4 visReal02<>, out float4 visImag02<>,
+			      out float4 visReal12<>, out float4 visImag12<>,
+			      out float4 visReal03<>, out float4 visImag03<>,
+			      out float4 visReal13<>, out float4 visImag13<>)
+{
+  float time;
+  float nrTimes = (float) nrTimesIn;
+  float nrCells = (float) nrCellsIn;
+
+  // get the visibility position: x = cell, y = channel
+  float2 pos = indexof(visReal02).xy;
+  float channel = pos.x;
+  float cell = pos.y;
+
+  float4 r02 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 i02 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 r12 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 i12 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 r03 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 i03 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 r13 = {0.0f, 0.0f, 0.0f, 0.0f};
+  float4 i13 = {0.0f, 0.0f, 0.0f, 0.0f};
+
+  float stat0 = cellToStatX[cell];
+  float stat1 = stat0 + 1.0f;
+  float stat2 = cellToStatY[cell];
+  float stat3 = stat2 + 1.0f;
+
+  for(time=0.0f; time < nrTimes; time = time + 1.0f) {
+    // load the four samples
+    float4 sample0 = samples[stat0][channel][time];
+    float4 sample1 = samples[stat1][channel][time];
+    float4 sample2 = samples[stat2][channel][time];
+    float4 sample3 = samples[stat3][channel][time];
+
+    r02 += sample0.xxzz * sample2.xzxz;
+    r02 += sample0.yyww * sample2.ywyw;
+    i02 += sample0.yyww * sample2.xzxz;
+    i02 -= sample0.xxzz * sample2.ywyw;
+
+    r12 += sample1.xxzz * sample2.xzxz;
+    r12 += sample1.yyww * sample2.ywyw;
+    i12 += sample1.yyww * sample2.xzxz;
+    i12 -= sample1.xxzz * sample2.ywyw;
+
+    r03 += sample0.xxzz * sample3.xzxz;
+    r03 += sample0.yyww * sample3.ywyw;
+    i03 += sample0.yyww * sample3.xzxz;
+    i03 -= sample0.xxzz * sample3.ywyw;
+
+    r13 += sample1.xxzz * sample3.xzxz;
+    r13 += sample1.yyww * sample3.ywyw;
+    i13 += sample1.yyww * sample3.xzxz;
+    i13 -= sample1.xxzz * sample3.ywyw;
+  }
+  
+  // and store
+  if(cell < nrCells) {
+    visReal02 = r02;
+    visImag02 = i02;
+    visReal12 = r12;
+    visImag12 = i12;
+    visReal03 = r03;
+    visImag03 = i03;
+    visReal13 = r13;
+    visImag13 = i13;
+  }
+}
+
+void correlate_2x2_vec(float* cellToStatXHost, float* cellToStatYHost, float* hostSamples, float* hostVisReal, float* hostVisImag)
+{
+  float4 samples<nrStations, nrChannels, nrTimes>;
+
+  float4 realVis02<nrCells,nrChannels>;
+  float4 imagVis02<nrCells,nrChannels>;
+  float4 realVis12<nrCells,nrChannels>;
+  float4 imagVis12<nrCells,nrChannels>;
+  float4 realVis03<nrCells,nrChannels>;
+  float4 imagVis03<nrCells,nrChannels>;
+  float4 realVis13<nrCells,nrChannels>;
+  float4 imagVis13<nrCells,nrChannels>;
+
+  float cellToStatX<nrCells>;
+  float cellToStatY<nrCells>;
+
+  streamRead(cellToStatX, cellToStatXHost);
+  streamRead(cellToStatY, cellToStatYHost);
+
+  startLoadTimer();
+  streamRead(samples, hostSamples);
+  stopLoadTimer();
+
+  startCorrelateTimer();
+  correlate_2x2_vec_kernel(nrTimes, nrCells, cellToStatX, cellToStatY, samples, 
+      realVis02, imagVis02, realVis12, imagVis12, realVis03, imagVis03, realVis13, imagVis13);
+  stopCorrelateTimer();
+
+  startStoreTimer();
+  // this is not correct, but ok for timing purposes...
+  streamWrite(realVis02, hostVisReal);
+  streamWrite(imagVis02, hostVisImag);
+  streamWrite(realVis12, hostVisReal);
+  streamWrite(imagVis12, hostVisImag);
+  streamWrite(realVis03, hostVisReal);
+  streamWrite(imagVis03, hostVisImag);
+  streamWrite(realVis13, hostVisReal);
+  streamWrite(imagVis13, hostVisImag);
+  stopStoreTimer();
+}
