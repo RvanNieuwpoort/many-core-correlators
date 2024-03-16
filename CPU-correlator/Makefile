@@ -1,4 +1,4 @@
-CC		= g++-4.3
+CC		= g++
 ICC		= /opt/intel/cc/10.1.012/bin/icc
 CC_FLAGS	= -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse -g
 ICC_FLAGS	= -O3 -msse3 -Wall -march=nocona
