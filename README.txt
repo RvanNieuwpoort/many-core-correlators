@@ -21,6 +21,7 @@ Rob V. van Nieuwpoort and John W. Romein:
 Correlating Radio Astronomy Signals with Many-Core Hardware
 Springer International Journal of Parallel Programming, Special Issue on NY-2009 
 Intl. Conf. on Supercomputing, Volume 39, Number 1, 88-114, DOI: 10.1007/s10766-010-0144-3, 2011.
+DOI: 10.1007/s10766-010-0144-3
 
 Cheers,
 
