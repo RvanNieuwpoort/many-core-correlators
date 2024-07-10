@@ -1,0 +1,44 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: many-core correlators
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Rob
+    name-particle: van
+    family-names: Nieuwpoort
+    email: r.v.van.nieuwpoort@liacs.leidenuniv.nl
+    affiliation: Leiden University
+    orcid: 'https://orcid.org/0000-0002-2947-9444'
+identifiers:
+  - type: doi
+    value: 10.1007/s10766-010-0144-3
+    description: Paper describing the correlators
+repository-code: 'https://github.com/RvanNieuwpoort/many-core-correlators'
+url: 'https://github.com/RvanNieuwpoort/many-core-correlators'
+abstract: >-
+  These are example codes for a software correlator. The
+  package includes source code for Intel X86, Cell/B.E.
+  NVIDIA GPUs, AMD GPUs and an OpenCL version that is
+  portable.The correlator is a signal processing application
+  that multiplies all pairs of complex input signals. At
+  ASTRON, we use the correlator for the LOFAR radio
+  telescope. See www.lofar.org and www.astron.nl. This
+  telescope consists of tens of thousands of small antennas
+  which are combined in software to form one large "virtual
+  dish". The correlator is the most time consuming step in
+  the real-time pipeline. Its computational complexity is
+  quadratic in the number of receivers. 
+keywords:
+  - LOFAR
+  - radio astronomy
+  - correlator
+  - many-core
+  - GPU
+  - OpenCL
+  - telescope
+license: Apache-2.0
