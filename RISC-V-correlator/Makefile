@@ -1,12 +1,12 @@
 CC		= g++
-ICC		= /opt/intel/cc/10.1.012/bin/icc
-CC_FLAGS	= -O3 #-msse3 -Wall -march=nocona -m64 -mfpmath=sse -g
-ICC_FLAGS	= -O3 -msse3 -Wall -march=nocona
-#CC_LINK_FLAGS   = -m64 -lpthread
+CC_FLAGS	= -O3 -x c++ -march=rv64gcv_zba_zbb_zbs -Wall 
+
+#CC		= clang
+#CC_FLAGS	= -O3 -x c++ --target=riscv64 -march=rv64gcv_zba_zbb_zbs -Wall
+
 CC_LINK_FLAGS   = -lpthread
 
 CC_SOURCES	= main.cc cpu_correlator_1x1.cc reference_correlator.cc 
-#cpu_correlator_1x1_sse3.cc cpu_correlator_1x1_sse3.cc cpu_correlator_1x1_time_sse3.cc cpu_correlator_2x2_sse3.cc cpu_correlator_2x2_time_sse3.cc cpu_correlator_3x2_time_sse3.cc  timer.cc 
 
 CC_OBJECTS	= $(CC_SOURCES:%.cc=%.o)
 
@@ -23,7 +23,6 @@ correlator:	$(CC_OBJECTS)
 
 s:		$(CC_AS)
 #		$(CC) $(CC_FLAGS) -S cpu_correlator_1x1.cc -o cpu_correlator_1x1.s
-#		$(CC) $(CC_FLAGS) -S cpu_correlator_1x1_sse3.cc -o cpu_correlator_1x1_sse3.s
 
 clean:
 		rm -f *.o correlator *~

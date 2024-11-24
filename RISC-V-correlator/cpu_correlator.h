@@ -7,11 +7,6 @@
 
 #define CORRELATOR_REFERENCE     1
 #define CORRELATOR_1X1           2
-#define CORRELATOR_1X1_SSE3      3
-#define CORRELATOR_1X1_TIME_SSE3 4
-#define CORRELATOR_2X2_SSE3      5
-#define CORRELATOR_2X2_TIME_SSE3 6
-#define CORRELATOR_3X2_TIME_SSE3 7
 
 
 #define BASELINE(STATION_1, STATION_2)			\
@@ -38,26 +33,5 @@ extern unsigned long long cpuCorrelator_1x1(float* samples, float* visibilities,
 					    unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
 					    unsigned long long* bytesLoaded, unsigned long long* bytesStored);
 
-extern unsigned long long cpuCorrelator_1x1_sse3(float* samples, float* visibilities,
-						 unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
-						 unsigned long long* bytesLoaded, unsigned long long* bytesStored);
-
-extern unsigned long long cpuCorrelator_1x1_time_sse3(float* samples, float* visibilities,
-						      unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
-						      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
-
-extern unsigned long long cpuCorrelator_2x2_sse3(float* samples, float* visibilities,
-						 unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
-						 unsigned long long* bytesLoaded, unsigned long long* bytesStored);
-
-extern unsigned long long cpuCorrelator_2x2_time_sse3(float* samples, float* visibilities, 
-						      unsigned nrTimes, unsigned nrTimesWidth, 
-						      unsigned nrStations, unsigned nrChannels,
-						      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
-
-extern unsigned long long cpuCorrelator_3x2_time_sse3(float* samples, float* visibilities, 
-						      unsigned nrTimes, unsigned nrTimesWidth, 
-						      unsigned nrStations, unsigned nrChannels,
-						      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
 
 #endif // _CPU_CORRELATOR_H
