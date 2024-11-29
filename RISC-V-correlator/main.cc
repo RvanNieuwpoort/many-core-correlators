@@ -1,5 +1,6 @@
 #include "cpu_correlator.h"
 
+#include <cstring> // for memset
 #include <complex>
 #include <cassert>
 #include <cstdlib>
@@ -7,9 +8,10 @@
 #include <chrono>
 #include <riscv_vector.h>
 
-#define CORRELATOR_VERSION CORRELATOR_REFERENCE
 #define VECTOR_WIDTH_IN_FLOATS 8
 #define PRINT_RESULT 0
+#define ALIGNMENT 256 // in bytes
+
 
 using namespace std;
 
@@ -18,12 +20,12 @@ const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
 const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
 const unsigned nrChannels = 128;
 const unsigned nrPolarizations = 2;
-const unsigned iter = 2;
+const unsigned iter = 1;
 const unsigned nrThreads = 8;
 
 class params {
 public:
-    int version;
+    int correlatorType;
     float* samples; 
     float* visibilities;
     unsigned long long ops, bytesLoaded, bytesStored;
@@ -48,17 +50,18 @@ void print_vfloat32m8(vfloat32m8_t f, const char* name)
     }
 
     __riscv_vse32_v_f32m8(result, f, VECTOR_WIDTH_IN_FLOATS);
-
+#if 0
     cout << "float vec " << name << " = { ";
     for(int i=0; i<VECTOR_WIDTH_IN_FLOATS; i++) {
 	cout << result[i] << " ";
     }
     cout << " }" << endl;
+#endif
 }
 
 void* calcMaxFlops(void* data)
 {
-    // Do some (preferably) vectorized computation here to compute the maximum peak performance.
+    // Do a simple vectorized computation here to compute the maximum peak performance.
     // Vectors are 256 bit, so 8 32 bit floats.
 
     vfloat32m8_t va = init_vfloat32m8(0.2E-9f);
@@ -77,7 +80,6 @@ void* calcMaxFlops(void* data)
     vfloat32m8_t vn = init_vfloat32m8(0.15E-9f);
     vfloat32m8_t vo = init_vfloat32m8(0.16E-9f);
     vfloat32m8_t vp = init_vfloat32m8(0.17E-9f);
-//    print_vfloat32m8(va, "va");
         
     // We do 16 ops in the loop. 1 FMA * 8 floats.
     for (unsigned long long x = 0; x < (1E9L/(16*16)); x++) {
@@ -120,9 +122,9 @@ void* calcMaxFlops(void* data)
     return 0;
 }
 
-void printCorrelatorType()
+void printCorrelatorType(int correlatorType)
 {
-    switch (CORRELATOR_VERSION) {
+    switch (correlatorType) {
     case CORRELATOR_REFERENCE:
 	cout << "reference";
 	break;
@@ -135,12 +137,29 @@ void printCorrelatorType()
     }
 }
 
+void printResult(float* visibilities)
+{
+    for (unsigned channel = 0; channel < nrChannels; channel ++) {
+	for (unsigned baseline = 0; baseline < nrBaselines; baseline ++) {
+	    for (unsigned pol0 = 0; pol0 < 2; pol0 ++) {
+		for (unsigned pol1 = 0; pol1 < 2; pol1 ++) {
+		    std::cout.precision(15);
+		    std::cout << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0)] << ", " 
+			      << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1)]
+			      << std::endl;
+		    
+		}
+	    }
+	}
+    }
+}
+
 void* runCorrelator(void* data)
 {
     params* p = (params*) data;
 
     for(unsigned i=0; i<iter; i++) {
-	switch (p->version) {
+	switch (p->correlatorType) {
 	case CORRELATOR_REFERENCE:
 	    p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
@@ -158,20 +177,7 @@ void* runCorrelator(void* data)
     p->bytesStored *=iter;
 
 #if PRINT_RESULT
-    unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
-    for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	for (unsigned baseline = 0; baseline < nrBaselines; baseline ++) {
-	    for (unsigned pol0 = 0; pol0 < 2; pol0 ++) {
-		for (unsigned pol1 = 0; pol1 < 2; pol1 ++) {
-		    std::cout.precision(15);
-		    std::cout << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0)] << ", " 
-			      << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1)]
-			      << std::endl;
-
-		}
-	    }
-	}
-    }
+    printResult(visibilities);
 #endif
 
     return 0;
@@ -207,50 +213,12 @@ double computeMaxFlops()
     return maxGflops;
 }
 
-int main()
+void spawnCorrelatorThreads(int correlatorType, float* samples, const unsigned arraySize,
+			    float* visibilities, const unsigned visArraySize, double maxFlops)
 {
-    // set the vector length
-    size_t vl = __riscv_vsetvl_e32m8(VECTOR_WIDTH_IN_FLOATS);
-    cout << "vector length = " << vl << " 32 bit floats" << endl;
-    
-    double maxFlops = computeMaxFlops();
-
-    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*nrPolarizations*2;
-    const unsigned visArraySize = nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2;
-
-    float* samples = new float[nrThreads*nrStations*nrChannels*nrTimesWidth*nrPolarizations*2];
-    float* visibilities= new float[nrThreads*nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2];
-
-#if 0
-    for (unsigned time = 0; time < nrTimes; time ++) {
-	samples[0][7][time][0] = 1;
-	samples[0][7][time][1] = complex<float>(3, 4);
-	samples[5][7][time][0] = 1;
-    }
-#else
-    for(unsigned t = 0; t<nrThreads; t++) {
-	for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	    for (unsigned stat = 0; stat < nrStations; stat ++) {
-		for (unsigned time = 0; time < nrTimes; time ++) {
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
-		    
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
-		}
-	    }
-	}
-    } 
-#endif
-
     cout << "Running correlator \"";
-    printCorrelatorType();
+    printCorrelatorType(correlatorType);
     cout << "\" with " << nrThreads << " threads, for " << iter << " iterations" << endl;
-    cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
-	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, "
-	 << nrPolarizations << " polarizations"  << endl;
-
-    cout << "Timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
 
     pthread_t threads[nrThreads];
     params p[nrThreads];
@@ -260,7 +228,7 @@ int main()
 	p[t].bytesStored = 0;
 	p[t].samples = &samples[t*arraySize];
 	p[t].visibilities = &visibilities[t*visArraySize];
-	p[t].version = CORRELATOR_VERSION;
+	p[t].correlatorType = correlatorType;
     }
 
     auto start_time = chrono::high_resolution_clock::now();
@@ -289,51 +257,98 @@ int main()
     }
 
     long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    
     double elapsed = (double) nanos / 1.0E9;
-
-    //    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
-
     double flops = (ops / elapsed) / 1000000000.0;
     double efficiency = (flops / maxFlops) * 100.0;
-    cout << "correlate took " << elapsed << " s, max Gflops = " << maxFlops << ", achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
     double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
     double mbsStore = (double) (bytesStored / (1024.0 * 1024.0)) / elapsed;
 
+    cout << "correlate took " << elapsed << " s, achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
     cout << "throughput: " << gbsLoad << " GB/s load, " << mbsStore << " MB/s store" << endl;
+}
 
-    std::cout.precision(15);
-    std::cout << visibilities[VISIBILITIES_INDEX(BASELINE(0, 0), 7, 0, 0, 0)] << ", " 
-	      << visibilities[VISIBILITIES_INDEX(BASELINE(0, 0), 7, 0, 0, 1)]
-	      << std::endl;
-
-    std::cout << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 0, 0)]  << ", " 
-	      << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 0, 1)] 
-	      << std::endl;
-
-    std::cout << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 1, 0)]  << ", " 
-	      << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 1, 1)] 
-	      << std::endl;
-
-#if 0
-    complex<float> *checkVis = new complex<float>[visibilitiesSize / sizeof(complex<float>)];
-    correlateOnHost(samples[0], checkVis);
-    std::cout << checkVis[BASELINE(0, 0)][7][0][0] << std::endl;
-    std::cout << checkVis[BASELINE(0, 4)][7][0][0] << std::endl;
-    std::cout << checkVis[BASELINE(0, 4)][7][0][1] << std::endl;
-
-    for (unsigned channel = 0; channel < nrChannels; channel ++)
-	for (unsigned baseline = 0; baseline < nrBaselines; baseline ++)
-	    for (unsigned pol0 = 0; pol0 < 2; pol0 ++)
-		for (unsigned pol1 = 0; pol1 < 2; pol1 ++) {
-		    size_t index = VISIBILITIES_INDEX(baseline, channel, pol0, pol1);
-
-		    if (visibilities[index] != checkVis[index])
-			std::cout << "channel = " << channel << ", baseline = " << baseline << ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[index] << " != " << checkVis[index] << std::endl;
+void initSamples(float* samples, const unsigned arraySize)
+{
+    for(unsigned t = 0; t<nrThreads; t++) {
+	for (unsigned channel = 0; channel < nrChannels; channel ++) {
+	    for (unsigned stat = 0; stat < nrStations; stat ++) {
+		for (unsigned time = 0; time < nrTimes; time ++) {
+		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
+		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
+		    
+		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
+		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
 		}
+	    }
+	}
+    }
+}
 
-    delete [] checkVis;
-#endif
+void checkResult(float* samples, const unsigned arraySize,
+		 float* visibilities, const unsigned visArraySize, double maxFlops)
+{
+    float* checkVisibilities = new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
+    memset(checkVisibilities, 0, nrThreads*visArraySize*sizeof(float));
+    
+    spawnCorrelatorThreads(CORRELATOR_REFERENCE, samples, arraySize, checkVisibilities, visArraySize, maxFlops);
+
+    for (unsigned channel = 0; channel < nrChannels; channel ++) {
+	for (unsigned stat1 = 0; stat1 < nrStations; stat1 ++) {
+	    for (unsigned stat0 = 0; stat0 <= stat1; stat0 ++) {
+		for (unsigned time = 0; time < nrTimes; time ++) {
+		    for (unsigned pol0 = 0; pol0 < 2; pol0 ++) {
+			for (unsigned pol1 = 0; pol1 < 2; pol1 ++) { 
+			    unsigned baseline = BASELINE(stat0, stat1);
+			    unsigned vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
+			    unsigned vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
+			    
+			    if(visibilities[vis_index_real] != checkVisibilities[vis_index_real]) {
+				std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
+				    ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_real] <<
+				    " != " << checkVisibilities[vis_index_real] << std::endl;
+				return;
+			    }
+			    if(visibilities[vis_index_imag] != checkVisibilities[vis_index_imag]) {
+				std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
+				    ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_imag] <<
+				    " != " << checkVisibilities[vis_index_imag] << std::endl;
+			    }
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    cout << "result validated OK" << endl;
+    delete [] checkVisibilities;
+}
+
+int main()
+{
+    // set the vector length
+    size_t vl = __riscv_vsetvl_e32m8(VECTOR_WIDTH_IN_FLOATS);
+    cout << "vector length = " << vl << " 32 bit floats" << endl;
+    cout << "Timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
+    cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
+	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, "
+	 << nrPolarizations << " polarizations"  << endl;
+
+    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*nrPolarizations*2;
+    const unsigned visArraySize = nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2;
+
+    cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
+	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, " << endl;
+
+    double maxFlops = computeMaxFlops();
+   
+    float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
+    float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
+    memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
+
+    initSamples(samples, arraySize);
+    spawnCorrelatorThreads(CORRELATOR_1X1, samples, arraySize, visibilities, visArraySize, maxFlops);
+    checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
 
     delete[] samples;
     delete[] visibilities;

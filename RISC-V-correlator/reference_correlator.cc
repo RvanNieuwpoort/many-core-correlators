@@ -32,8 +32,8 @@ unsigned long long referenceCorrelator(float* samples, float* visibilities,
 			    float stat1_real = samples[stat1_index_real];
 			    float stat1_imag = samples[stat1_index_imag];
 
-			    float res_real = stat0_real * -stat1_real - stat0_imag * -stat1_imag;
-			    float res_imag = stat0_real * -stat1_imag + stat0_imag * stat1_real;
+			    float res_real = stat0_real *  stat1_real + stat0_imag * stat1_imag;
+			    float res_imag = stat0_imag *  stat1_real - stat0_real * stat1_imag;
 
 			    visibilities[vis_index_real] += res_real;
 			    visibilities[vis_index_imag] += res_imag;
