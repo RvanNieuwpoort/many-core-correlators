@@ -5,9 +5,9 @@
 
 using namespace std;
 
-unsigned long long referenceCorrelator(float* samples, float* visibilities, 
-				       unsigned nrTimes, unsigned nrTimesWidth, 
-				       unsigned nrStations, unsigned nrChannels,
+unsigned long long referenceCorrelator(const float* __restrict__ samples, float* __restrict__ visibilities, 
+				       const unsigned nrTimes, const unsigned nrTimesWidth, 
+				       const unsigned nrStations, const unsigned nrChannels,
 				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
     unsigned nrBaselines = nrStations * (nrStations + 1) / 2;

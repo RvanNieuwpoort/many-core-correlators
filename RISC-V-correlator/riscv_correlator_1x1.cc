@@ -6,9 +6,9 @@
 using namespace std;
 
 // used for 1x1 correlator only
-static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
+static unsigned char baselineToStat1[MAX_CELLS], baselineToStat2[MAX_CELLS];
 
-static unsigned fillCellToStatTable()
+static unsigned fillCellToStatTable(unsigned nrStations)
 {
     unsigned baseline = 0;
 
@@ -22,20 +22,22 @@ static unsigned fillCellToStatTable()
     return baseline;
 }
 
-unsigned long long riscvCorrelator_1x1(float* samples, float* visibilities, 
-				     unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
-				     unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+unsigned long long riscvCorrelator_1x1(const float* __restrict__ samples, float* __restrict__ visibilities, 
+				       const unsigned nrTimes, const unsigned nrTimesWidth,
+				       const unsigned nrStations, const unsigned nrChannels,
+				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrBaselines = fillCellToStatTable();
+    unsigned nrBaselines = fillCellToStatTable(nrStations);
 
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
 	for (unsigned baseline = 0; baseline < nrBaselines; baseline++) {
-	    unsigned stat1 = baselineToStat1[baseline];
-	    unsigned stat2 = baselineToStat2[baseline];
+	    const unsigned stat1 = baselineToStat1[baseline];
+	    const unsigned stat2 = baselineToStat2[baseline];
 
 	    float xxr = 0, xxi = 0, xyr = 0, xyi = 0, yxr = 0, yxi = 0, yyr = 0, yyi = 0;
 	    unsigned index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
 	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
+
 	    for (unsigned time = 0; time < nrTimes; time ++) {
 
 		float sample1xr = samples[index1+0];
@@ -63,7 +65,7 @@ unsigned long long riscvCorrelator_1x1(float* samples, float* visibilities,
 		index2 += 4;
 	    }
 	    if (baseline < nrBaselines) {
-		unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+		const unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 		visibilities[vis_index+0] = xxr;
 		visibilities[vis_index+1] = xxi;
 		visibilities[vis_index+2] = xyr;
@@ -76,10 +78,8 @@ unsigned long long riscvCorrelator_1x1(float* samples, float* visibilities,
 	}
     }
 
-    unsigned long long ops = nrChannels * nrBaselines * nrTimes * 16L * 2L;
-
     *bytesLoaded = nrChannels * nrBaselines * nrTimes * 8L * sizeof(float); // samples
     *bytesStored = nrChannels * nrBaselines * 8L * sizeof(float); // vis
 
-    return ops;
+    return nrChannels * nrBaselines * nrTimes * 16L * 2L;
 }

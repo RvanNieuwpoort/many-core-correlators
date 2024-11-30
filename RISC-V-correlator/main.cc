@@ -18,7 +18,7 @@ using namespace std;
 const unsigned nrStations = 32;
 const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
 const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-const unsigned nrChannels = 128;
+const unsigned nrChannels = 256;
 const unsigned nrPolarizations = 2;
 const unsigned iter = 1;
 const unsigned nrThreads = 8;
@@ -131,6 +131,9 @@ void printCorrelatorType(int correlatorType)
     case CORRELATOR_1X1:
 	cout << "1x1";
 	break;
+    case CORRELATOR_2X2:
+	cout << "2x2";
+	break;
     default:
 	cout << "illegal correlator" << endl;
 	exit(66);
@@ -166,15 +169,18 @@ void* runCorrelator(void* data)
 	case CORRELATOR_1X1:
 	    p->ops = riscvCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
+	case CORRELATOR_2X2:
+	    p->ops = riscvCorrelator_2x2(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	    break;
 	default:
 	    cout << "illegal correlator" << endl;
 	    exit(66);
 	}
     }
 
-    p->ops *=iter;
+    p->ops *= iter;
     p->bytesLoaded *= iter;
-    p->bytesStored *=iter;
+    p->bytesStored *= iter;
 
 #if PRINT_RESULT
     printResult(visibilities);
@@ -347,7 +353,11 @@ int main()
     memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
 
     initSamples(samples, arraySize);
+
     spawnCorrelatorThreads(CORRELATOR_1X1, samples, arraySize, visibilities, visArraySize, maxFlops);
+    checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
+
+    spawnCorrelatorThreads(CORRELATOR_2X2, samples, arraySize, visibilities, visArraySize, maxFlops);
     checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
 
     delete[] samples;
