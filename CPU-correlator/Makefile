@@ -1,6 +1,7 @@
 CC		= g++
 ICC		= /opt/intel/cc/10.1.012/bin/icc
-CC_FLAGS	= -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse -g
+#CC_FLAGS	= -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse -g
+CC_FLAGS	= -O3 -Wall 
 ICC_FLAGS	= -O3 -msse3 -Wall -march=nocona
 CC_LINK_FLAGS   = -m64 -lpthread
 

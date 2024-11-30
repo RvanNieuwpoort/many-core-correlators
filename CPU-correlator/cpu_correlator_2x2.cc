@@ -16,7 +16,6 @@ static unsigned fillCellToStatTable()
     return nrCells;
 }
 
-
 static unsigned long long calcNrOps()
 {
     unsigned nrCells, stat0, stat2;

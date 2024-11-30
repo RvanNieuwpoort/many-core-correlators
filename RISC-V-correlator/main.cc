@@ -1,4 +1,4 @@
-#include "cpu_correlator.h"
+#include "riscv_correlator.h"
 
 #include <cstring> // for memset
 #include <complex>
@@ -164,7 +164,7 @@ void* runCorrelator(void* data)
 	    p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
 	case CORRELATOR_1X1:
-	    p->ops = cpuCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	    p->ops = riscvCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
 	default:
 	    cout << "illegal correlator" << endl;

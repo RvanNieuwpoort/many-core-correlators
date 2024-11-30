@@ -1,7 +1,5 @@
-#ifndef _CPU_CORRELATOR_H
-#define _CPU_CORRELATOR_H
-
-#include <complex>
+#ifndef _RISCV_CORRELATOR_H
+#define _RISCV_CORRELATOR_H
 
 #define MAX_CELLS 2048
 
@@ -29,9 +27,9 @@ extern unsigned long long referenceCorrelator(float* samples, float* visibilitie
 					      unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
 					      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
 
-extern unsigned long long cpuCorrelator_1x1(float* samples, float* visibilities,
+extern unsigned long long riscvCorrelator_1x1(float* samples, float* visibilities,
 					    unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
 					    unsigned long long* bytesLoaded, unsigned long long* bytesStored);
 
 
-#endif // _CPU_CORRELATOR_H
+#endif // _RISCV_CORRELATOR_H

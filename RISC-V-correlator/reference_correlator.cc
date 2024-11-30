@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "cpu_correlator.h"
+#include "riscv_correlator.h"
 
 using namespace std;
 

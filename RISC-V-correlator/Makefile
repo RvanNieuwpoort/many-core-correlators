@@ -6,7 +6,7 @@ CC_FLAGS	= -O3 -x c++ -march=rv64gcv_zba_zbb_zbs -Wall
 
 CC_LINK_FLAGS   = -lpthread
 
-CC_SOURCES	= main.cc cpu_correlator_1x1.cc reference_correlator.cc 
+CC_SOURCES	= main.cc riscv_correlator_1x1.cc reference_correlator.cc 
 
 CC_OBJECTS	= $(CC_SOURCES:%.cc=%.o)
 

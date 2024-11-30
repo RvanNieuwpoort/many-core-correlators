@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "cpu_correlator.h"
+#include "riscv_correlator.h"
 
 using namespace std;
 
@@ -10,10 +10,10 @@ static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
 
 static unsigned fillCellToStatTable()
 {
-    unsigned baseline;
+    unsigned baseline = 0;
 
-    for (unsigned stat2 = baseline = 0; stat2 < nrStations; stat2 ++) {
-	for (unsigned stat1 = 0; stat1 <= stat2; stat1 ++, baseline ++) {
+    for (unsigned stat2 = 0; stat2 < nrStations; stat2++) {
+	for (unsigned stat1 = 0; stat1 <= stat2; stat1++, baseline++) {
 	    baselineToStat1[baseline] = stat1;
 	    baselineToStat2[baseline] = stat2;
 	}
@@ -22,7 +22,7 @@ static unsigned fillCellToStatTable()
     return baseline;
 }
 
-unsigned long long cpuCorrelator_1x1(float* samples, float* visibilities, 
+unsigned long long riscvCorrelator_1x1(float* samples, float* visibilities, 
 				     unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
 				     unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
