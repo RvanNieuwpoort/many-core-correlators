@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 
+#include "../common/common.h"
 #include "riscv_correlator.h"
 
 using namespace std;
@@ -10,7 +11,7 @@ unsigned long long referenceCorrelator(const float* __restrict__ samples, float*
 				       const unsigned nrStations, const unsigned nrChannels,
 				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
+    unsigned nrBaselines = NR_BASELINES(nrStations);
 
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
 	for (unsigned stat1 = 0; stat1 < nrStations; stat1 ++) {

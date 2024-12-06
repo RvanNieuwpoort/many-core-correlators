@@ -1,6 +1,6 @@
 #include "riscv_correlator.h"
 
-#include <cstring> // for memset
+#include <cstring> 
 #include <complex>
 #include <cassert>
 #include <cstdlib>
@@ -15,7 +15,8 @@
 
 using namespace std;
 
-const unsigned nrStations = 32;
+const bool validateResults = false;
+const unsigned nrStations = 64;
 const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
 const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
 const unsigned nrChannels = 256;
@@ -26,13 +27,14 @@ const unsigned nrThreads = 8;
 class params {
 public:
     int correlatorType;
-    float* samples; 
+    bool verbose;
+    const float* __restrict__ samples; 
     float* visibilities;
     unsigned long long ops, bytesLoaded, bytesStored;
 };
 
 
-vfloat32m8_t init_vfloat32m8(float val)
+vfloat32m8_t init_vfloat32m8(const float val)
 {
     float result[VECTOR_WIDTH_IN_FLOATS];
     for(int i=0; i<VECTOR_WIDTH_IN_FLOATS; i++) {
@@ -42,7 +44,7 @@ vfloat32m8_t init_vfloat32m8(float val)
     return __riscv_vle32_v_f32m8(result, VECTOR_WIDTH_IN_FLOATS);
 }
 
-void print_vfloat32m8(vfloat32m8_t f, const char* name)
+void print_vfloat32m8(const vfloat32m8_t f, const char* name)
 {
     float result[VECTOR_WIDTH_IN_FLOATS];
     for(int i=0; i<VECTOR_WIDTH_IN_FLOATS; i++) {
@@ -59,7 +61,7 @@ void print_vfloat32m8(vfloat32m8_t f, const char* name)
 #endif
 }
 
-void* calcMaxFlops(void* data)
+void* calcMaxFlops(void* /* unused */)
 {
     // Do a simple vectorized computation here to compute the maximum peak performance.
     // Vectors are 256 bit, so 8 32 bit floats.
@@ -101,7 +103,7 @@ void* calcMaxFlops(void* data)
 	vp = __riscv_vfmacc_vv_f32m8(vp, vp, vp, VECTOR_WIDTH_IN_FLOATS);
     }
 
-    // print results to make sure the compiler doesn't optimize everything away
+    // Print results just to make sure the compiler doesn't optimize everything away.
     print_vfloat32m8(va, "va");
     print_vfloat32m8(vb, "vb");
     print_vfloat32m8(vc, "vc");
@@ -130,6 +132,9 @@ void printCorrelatorType(int correlatorType)
 	break;
     case CORRELATOR_1X1:
 	cout << "1x1";
+	break;
+    case CORRELATOR_2X1:
+	cout << "2x1";
 	break;
     case CORRELATOR_2X2:
 	cout << "2x2";
@@ -168,6 +173,9 @@ void* runCorrelator(void* data)
 	    break;
 	case CORRELATOR_1X1:
 	    p->ops = riscvCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	    break;
+	case CORRELATOR_2X1:
+	    p->ops = riscvCorrelator_2x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
 	case CORRELATOR_2X2:
 	    p->ops = riscvCorrelator_2x2(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
@@ -219,12 +227,15 @@ double computeMaxFlops()
     return maxGflops;
 }
 
-void spawnCorrelatorThreads(int correlatorType, float* samples, const unsigned arraySize,
-			    float* visibilities, const unsigned visArraySize, double maxFlops)
+void spawnCorrelatorThreads(int correlatorType, const float* __restrict__ samples, const unsigned arraySize,
+			    float* __restrict__ visibilities, const unsigned visArraySize,
+			    const bool verbose, double maxFlops)
 {
-    cout << "Running correlator \"";
-    printCorrelatorType(correlatorType);
-    cout << "\" with " << nrThreads << " threads, for " << iter << " iterations" << endl;
+    if(verbose) {
+	cout << "Running correlator \"";
+	printCorrelatorType(correlatorType);
+	cout << "\" with " << nrThreads << " threads, for " << iter << " iterations" << endl;
+    }
 
     pthread_t threads[nrThreads];
     params p[nrThreads];
@@ -269,8 +280,14 @@ void spawnCorrelatorThreads(int correlatorType, float* samples, const unsigned a
     double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
     double mbsStore = (double) (bytesStored / (1024.0 * 1024.0)) / elapsed;
 
-    cout << "correlate took " << elapsed << " s, achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
-    cout << "throughput: " << gbsLoad << " GB/s load, " << mbsStore << " MB/s store" << endl;
+    if(verbose) {
+	cout << "correlate ";
+	printCorrelatorType(correlatorType);
+	cout << " took " << elapsed << " s, achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
+	cout << "throughput ";
+	printCorrelatorType(correlatorType);
+	cout << " is "<< gbsLoad << " GB/s load, " << mbsStore << " MB/s store" << endl;
+    }
 }
 
 void initSamples(float* samples, const unsigned arraySize)
@@ -293,10 +310,12 @@ void initSamples(float* samples, const unsigned arraySize)
 void checkResult(float* samples, const unsigned arraySize,
 		 float* visibilities, const unsigned visArraySize, double maxFlops)
 {
+    if(!validateResults) return;
+    
     float* checkVisibilities = new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
     memset(checkVisibilities, 0, nrThreads*visArraySize*sizeof(float));
     
-    spawnCorrelatorThreads(CORRELATOR_REFERENCE, samples, arraySize, checkVisibilities, visArraySize, maxFlops);
+    spawnCorrelatorThreads(CORRELATOR_REFERENCE, samples, arraySize, checkVisibilities, visArraySize, false, maxFlops);
 
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
 	for (unsigned stat1 = 0; stat1 < nrStations; stat1 ++) {
@@ -334,8 +353,8 @@ int main()
 {
     // set the vector length
     size_t vl = __riscv_vsetvl_e32m8(VECTOR_WIDTH_IN_FLOATS);
-    cout << "vector length = " << vl << " 32 bit floats" << endl;
-    cout << "Timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
+    cout << "vector length = " << vl << " 32 bit floats, ";
+    cout << "timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
     cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
 	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, "
 	 << nrPolarizations << " polarizations"  << endl;
@@ -344,7 +363,7 @@ int main()
     const unsigned visArraySize = nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2;
 
     cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
-	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, " << endl;
+	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
 
     double maxFlops = computeMaxFlops();
    
@@ -354,10 +373,13 @@ int main()
 
     initSamples(samples, arraySize);
 
-    spawnCorrelatorThreads(CORRELATOR_1X1, samples, arraySize, visibilities, visArraySize, maxFlops);
+    spawnCorrelatorThreads(CORRELATOR_1X1, samples, arraySize, visibilities, visArraySize, true, maxFlops);
     checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
 
-    spawnCorrelatorThreads(CORRELATOR_2X2, samples, arraySize, visibilities, visArraySize, maxFlops);
+    spawnCorrelatorThreads(CORRELATOR_2X1, samples, arraySize, visibilities, visArraySize, true, maxFlops);
+    checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
+
+    spawnCorrelatorThreads(CORRELATOR_2X2, samples, arraySize, visibilities, visArraySize, true, maxFlops);
     checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
 
     delete[] samples;

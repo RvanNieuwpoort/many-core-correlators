@@ -3,7 +3,8 @@
 
 #define CORRELATOR_REFERENCE     1
 #define CORRELATOR_1X1           2
-#define CORRELATOR_2X2           3
+#define CORRELATOR_2X1           3
+#define CORRELATOR_2X2           4
 
 #define MAX_NR_SATIONS 64
 #define MAX_CELLS (MAX_NR_SATIONS * MAX_NR_SATIONS / 2)
@@ -29,6 +30,11 @@ extern unsigned long long riscvCorrelator_1x1(const float* __restrict__ samples,
 					      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
 
 extern unsigned long long riscvCorrelator_2x2(const float* __restrict__ samples, float* __restrict__ visibilities,
+					      const unsigned nrTimes, const unsigned nrTimesWidth,
+					      const unsigned nrStations, const unsigned nrChannels,
+					      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
+
+extern unsigned long long riscvCorrelator_2x1(const float* __restrict__ samples, float* __restrict__ visibilities,
 					      const unsigned nrTimes, const unsigned nrTimesWidth,
 					      const unsigned nrStations, const unsigned nrChannels,
 					      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
