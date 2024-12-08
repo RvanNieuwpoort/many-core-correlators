@@ -2,14 +2,14 @@
 #include <iostream>
 #include <pmmintrin.h> // sse3
 
-#include "cpu_correlator.h"
+#include "X86-64_correlator.h"
 
 
 using namespace std;
 
 static unsigned char cellToStatX[MAX_CELLS], cellToStatY[MAX_CELLS];
 
-static unsigned fillCellToStatTable()
+static unsigned fillCellToStatTable(unsigned nrStations)
 {
     unsigned nrCells, stat0, stat2;
 
@@ -23,7 +23,8 @@ static unsigned fillCellToStatTable()
     return nrCells;
 }
 
-static unsigned long long calcNrOps(unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+static unsigned long long calcNrOps(unsigned nrTimes, unsigned nrStations, unsigned nrChannels,
+				    unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
     unsigned nrCells, stat0, stat2;
 
@@ -39,7 +40,7 @@ static unsigned long long calcNrOps(unsigned long long* bytesLoaded, unsigned lo
     return ops;
 }
 
-static inline void store(float* visibilities, unsigned stat0, unsigned stat1, unsigned channel, __m128 real, __m128 imag)
+static inline void store(float* visibilities, unsigned stat0, unsigned stat1, unsigned channel, unsigned nrChannels, __m128 real, __m128 imag)
 {
     unsigned baseline = BASELINE(stat0, stat1);
     unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
@@ -53,11 +54,12 @@ static inline void store(float* visibilities, unsigned stat0, unsigned stat1, un
     _mm_store_ps(&(visibilities[vis_index+4]), vis2);
 }
 
-unsigned long long cpuCorrelator_2x2_sse3(float* samples, float* visibilities, 
-					  unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
-					  unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, float* __restrict__ visibilities,
+						 const unsigned nrTimes, const unsigned nrTimesWidth,
+						 const unsigned nrStations, const unsigned nrChannels,
+						 unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrCells = fillCellToStatTable();
+    unsigned nrCells = fillCellToStatTable(nrStations);
     unsigned loopCount = LOOP_COUNT(nrCells, 1);
 
     for (unsigned channel = 0; channel < nrChannels; channel++) {
@@ -124,13 +126,13 @@ unsigned long long cpuCorrelator_2x2_sse3(float* samples, float* visibilities,
 	    }
 
 	    if (cell < nrCells) {
-		store(visibilities, stat0,   stat2,   channel, xxr_xyr_yxr_yyr_02, xxi_xyi_yxi_yyi_02);
-		store(visibilities, stat0+1, stat2,   channel, xxr_xyr_yxr_yyr_12, xxi_xyi_yxi_yyi_12);
-		store(visibilities, stat0,   stat2+1, channel, xxr_xyr_yxr_yyr_03, xxi_xyi_yxi_yyi_03);
-		store(visibilities, stat0+1, stat2+1, channel, xxr_xyr_yxr_yyr_13, xxi_xyi_yxi_yyi_13);
+		store(visibilities, stat0,   stat2,   channel, nrChannels, xxr_xyr_yxr_yyr_02, xxi_xyi_yxi_yyi_02);
+		store(visibilities, stat0+1, stat2,   channel, nrChannels, xxr_xyr_yxr_yyr_12, xxi_xyi_yxi_yyi_12);
+		store(visibilities, stat0,   stat2+1, channel, nrChannels, xxr_xyr_yxr_yyr_03, xxi_xyi_yxi_yyi_03);
+		store(visibilities, stat0+1, stat2+1, channel, nrChannels, xxr_xyr_yxr_yyr_13, xxi_xyi_yxi_yyi_13);
 	    }
 	}
     }
 
-    return calcNrOps(bytesLoaded, bytesStored);
+    return calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
 }

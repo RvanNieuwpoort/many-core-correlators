@@ -2,7 +2,7 @@
 #include <iostream>
 #include <pmmintrin.h> // sse3
 
-#include "cpu_correlator.h"
+#include "X86-64_correlator.h"
 
 
 using namespace std;
@@ -10,7 +10,7 @@ using namespace std;
 // used for 1x1 correlator only
 static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
 
-static unsigned fillCellToStatTable()
+static unsigned fillCellToStatTable(const unsigned nrStations)
 {
     unsigned baseline;
 
@@ -24,11 +24,12 @@ static unsigned fillCellToStatTable()
     return baseline;
 }
 
-unsigned long long cpuCorrelator_1x1_sse3(float* samples, float* visibilities, 
-					  unsigned nrTimes, unsigned nrTimesWidth, unsigned nrStations, unsigned nrChannels,
-				     unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+unsigned long long cpuCorrelator_1x1_sse3(const float* __restrict__ samples, float* __restrict__ visibilities,
+						 unsigned nrTimes, const unsigned nrTimesWidth,
+						 const unsigned nrStations, const unsigned nrChannels,
+						 unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrBaselines = fillCellToStatTable();
+    unsigned nrBaselines = fillCellToStatTable(nrStations);
 
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
 	for (unsigned baseline = 0; baseline < nrBaselines; baseline++) {

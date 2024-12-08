@@ -2,14 +2,13 @@
 #include <iostream>
 
 #include "common.h"
-#include "cpu_correlator.h"
 
 using namespace std;
 
 unsigned long long cpuCorrelator_1x1(const float* __restrict__ samples, float* __restrict__ visibilities, 
-				       const unsigned nrTimes, const unsigned nrTimesWidth,
-				       const unsigned nrStations, const unsigned nrChannels,
-				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+				     const unsigned nrTimes, const unsigned nrTimesWidth,
+				     const unsigned nrStations, const unsigned nrChannels,
+				     unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
     const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
 

@@ -2,14 +2,14 @@
 #include <iostream>
 #include <pmmintrin.h> // sse3
 
-#include "cpu_correlator.h"
+#include "X86-64_correlator.h"
 
 
 using namespace std;
 
 static unsigned char cellToStatX[MAX_CELLS], cellToStatY[MAX_CELLS];
 
-static unsigned fillCellToStatTable()
+static unsigned fillCellToStatTable(const unsigned nrStations)
 {
     unsigned nrCells, stat0, stat2;
 
@@ -23,7 +23,8 @@ static unsigned fillCellToStatTable()
     return nrCells;
 }
 
-static unsigned long long calcNrOps(unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+static unsigned long long calcNrOps(const unsigned nrTimes, const unsigned nrStations, const unsigned nrChannels,
+				    unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
     unsigned nrCells, stat0, stat2;
 
@@ -39,14 +40,12 @@ static unsigned long long calcNrOps(unsigned long long* bytesLoaded, unsigned lo
     return ops;
 }
 
-
-
-unsigned long long cpuCorrelator_3x2_time_sse3(float* samples, float* visibilities, 
-					       unsigned nrTimes, unsigned nrTimesWidth, 
-					       unsigned nrStations, unsigned nrChannels,
-					       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
+unsigned long long cpuCorrelator_3x2_time_sse3(const float* __restrict__ samples, float* __restrict__ visibilities, 
+						      const unsigned nrTimes, const unsigned nrTimesWidth, 
+						      const unsigned nrStations, const unsigned nrChannels,
+						      unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrCells = fillCellToStatTable();
+    unsigned nrCells = fillCellToStatTable(nrStations);
 
     for (unsigned channel = 0; channel < nrChannels; channel++) {
 	for (unsigned cell = 0; cell < nrCells; cell++) {
@@ -312,5 +311,5 @@ unsigned long long cpuCorrelator_3x2_time_sse3(float* samples, float* visibiliti
 	}
     }
 
-    return calcNrOps(bytesLoaded, bytesStored);
+    return calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
 }

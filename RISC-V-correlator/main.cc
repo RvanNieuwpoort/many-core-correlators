@@ -18,21 +18,11 @@ using namespace std;
 
 const bool validateResults = false;
 const unsigned nrStations = 64;
-const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
+const unsigned nrBaselines = NR_BASELINES(nrStations);
 const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
 const unsigned nrChannels = 256;
 const unsigned iter = 1;
 const unsigned nrThreads = 8;
-
-class params {
-public:
-    int correlatorType;
-    bool verbose;
-    const float* __restrict__ samples; 
-    float* visibilities;
-    unsigned long long ops, bytesLoaded, bytesStored;
-};
-
 
 vfloat32m8_t init_vfloat32m8(const float val)
 {
@@ -61,7 +51,7 @@ void print_vfloat32m8(const vfloat32m8_t f, const char* name)
 #endif
 }
 
-void* calcMaxFlops(void* /* unused */)
+void* runMaxFlopsTest(void* /* unused */)
 {
     // Do a simple vectorized computation here to compute the maximum peak performance.
     // Vectors are 256 bit, so 8 32 bit floats.
@@ -124,36 +114,6 @@ void* calcMaxFlops(void* /* unused */)
     return 0;
 }
 
-double computeMaxFlops()
-{
-    pthread_t threads[nrThreads];
-  
-    auto start_time = chrono::high_resolution_clock::now();
-
-    for(unsigned i=0; i<nrThreads; i++) {
-	if (pthread_create(&threads[i], 0, calcMaxFlops, 0) != 0) {
-	    std::cout << "could not create thread" << std::endl;
-	    exit(1);
-	}
-    }
-
-    for(unsigned i=0; i<nrThreads; i++) {
-	if (pthread_join(threads[i], 0) != 0) {
-	    std::cout << "could not join thread" << std::endl;
-	    exit(1);
-	}
-    }
-  
-    auto end_time = chrono::high_resolution_clock::now();
-    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    double elapsed = (double) nanos / 1.0E9;
-    unsigned long long gigaOps = 16L * nrThreads; 
-    double maxGflops = (double) gigaOps / elapsed; 
-    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
-    cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
-    return maxGflops;
-}
-
 void printCorrelatorType(int correlatorType)
 {
     switch (correlatorType) {
@@ -210,127 +170,7 @@ void* runCorrelator(void* data)
     return 0;
 }
 
-void spawnCorrelatorThreads(int correlatorType, const float* __restrict__ samples, const unsigned arraySize,
-			    float* __restrict__ visibilities, const unsigned visArraySize,
-			    const bool verbose, double maxFlops)
-{
-    if(verbose) {
-	cout << "Running correlator \"";
-	printCorrelatorType(correlatorType);
-	cout << "\" with " << nrThreads << " threads, for " << iter << " iterations" << endl;
-    }
 
-    pthread_t threads[nrThreads];
-    params p[nrThreads];
-    for(unsigned t=0; t<nrThreads; t++) {
-	p[t].ops = 0;
-	p[t].bytesLoaded = 0;
-	p[t].bytesStored = 0;
-	p[t].samples = &samples[t*arraySize];
-	p[t].visibilities = &visibilities[t*visArraySize];
-	p[t].correlatorType = correlatorType;
-    }
-
-    auto start_time = chrono::high_resolution_clock::now();
-
-    for(unsigned t=0; t<nrThreads; t++) {
-	if (pthread_create(&threads[t], 0, runCorrelator, &p[t]) != 0) {
-	    std::cout << "could not create thread" << std::endl;
-	    exit(1);
-	}
-    }
-
-    for(unsigned t=0; t<nrThreads; t++) {
-	if (pthread_join(threads[t], 0) != 0) {
-	    std::cout << "could not join thread" << std::endl;
-	    exit(1);
-	}
-    }
-
-    auto end_time = chrono::high_resolution_clock::now();
-
-    unsigned long long ops=0, bytesLoaded=0, bytesStored=0;
-    for(unsigned t=0; t<nrThreads; t++) {
-	ops += p[t].ops;
-	bytesLoaded += p[t].bytesLoaded;
-	bytesStored += p[t].bytesStored;
-    }
-
-    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    double elapsed = (double) nanos / 1.0E9;
-    double flops = (ops / elapsed) / 1000000000.0;
-    double efficiency = (flops / maxFlops) * 100.0;
-    double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
-    double mbsStore = (double) (bytesStored / (1024.0 * 1024.0)) / elapsed;
-
-    if(verbose) {
-	cout << "correlate ";
-	printCorrelatorType(correlatorType);
-	cout << " took " << elapsed << " s, achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
-	cout << "throughput ";
-	printCorrelatorType(correlatorType);
-	cout << " is "<< gbsLoad << " GB/s load, " << mbsStore << " MB/s store" << endl;
-    }
-}
-
-void initSamples(float* samples, const unsigned arraySize)
-{
-    for(unsigned t = 0; t<nrThreads; t++) {
-	for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	    for (unsigned stat = 0; stat < nrStations; stat ++) {
-		for (unsigned time = 0; time < nrTimes; time ++) {
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
-		    
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
-		}
-	    }
-	}
-    }
-}
-
-void checkResult(float* samples, const unsigned arraySize,
-		 float* visibilities, const unsigned visArraySize, double maxFlops)
-{
-    if(!validateResults) return;
-    
-    float* checkVisibilities = new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
-    memset(checkVisibilities, 0, nrThreads*visArraySize*sizeof(float));
-    
-    spawnCorrelatorThreads(CORRELATOR_REFERENCE, samples, arraySize, checkVisibilities, visArraySize, false, maxFlops);
-
-    for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	for (unsigned stat1 = 0; stat1 < nrStations; stat1 ++) {
-	    for (unsigned stat0 = 0; stat0 <= stat1; stat0 ++) {
-		for (unsigned time = 0; time < nrTimes; time ++) {
-		    for (unsigned pol0 = 0; pol0 < NR_POLARIZATIONS; pol0 ++) {
-			for (unsigned pol1 = 0; pol1 < NR_POLARIZATIONS; pol1 ++) { 
-			    unsigned baseline = BASELINE(stat0, stat1);
-			    unsigned vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
-			    unsigned vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
-			    
-			    if(visibilities[vis_index_real] != checkVisibilities[vis_index_real]) {
-				std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
-				    ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_real] <<
-				    " != " << checkVisibilities[vis_index_real] << std::endl;
-				return;
-			    }
-			    if(visibilities[vis_index_imag] != checkVisibilities[vis_index_imag]) {
-				std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
-				    ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_imag] <<
-				    " != " << checkVisibilities[vis_index_imag] << std::endl;
-			    }
-			}
-		    }
-		}
-	    }
-	}
-    }
-
-    cout << "result validated OK" << endl;
-    delete [] checkVisibilities;
-}
 
 int main()
 {

@@ -1,5 +1,4 @@
 #include "common.h"
-#include "cpu_correlator.h"
 #include <iostream>
 
 using namespace std;

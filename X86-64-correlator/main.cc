@@ -1,28 +1,25 @@
-#include "cpu_correlator.h"
+#include "../common/common.h"
+#include "X86-64_correlator.h"
 
 #include <complex>
 #include <cassert>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <chrono>
 #include <emmintrin.h>
 
 using namespace std;
 
-const unsigned nrStations	 = 64;
-const unsigned nrTimes	 = 768, nrTimesWidth = 768; // 770
-const unsigned nrChannels	 = 128;
-const unsigned nrPolarizations = 2;
-const unsigned iter = 10;
-const unsigned nrThreads = 32;
+static const bool verbose = true;
+static const bool validateResults = true;
+static const unsigned nrStations = 64;
+static const unsigned nrBaselines = NR_BASELINES(nrStations);
+static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
+static const unsigned nrChannels = 128;
+static const unsigned iter = 1;
+static const unsigned nrThreads = 32;
 
-class params {
-public:
-    int version;
-    float* samples; 
-    float* visibilities;
-    unsigned long long ops, bytesLoaded, bytesStored;
-};
 
 void* calcMaxFlops(void* data)
 {
@@ -65,8 +62,45 @@ void* calcMaxFlops(void* data)
   }
 
   result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p;
+  *(__m128*)data = result;
 
   return 0;
+}
+
+void printCorrelatorType(int correlatorType)
+{
+    switch (correlatorType) {
+    case CORRELATOR_REFERENCE:
+	cout << "reference";
+	break;
+    case CORRELATOR_1X1:
+	cout << "1x1";
+	break;
+    case CORRELATOR_2X1:
+	cout << "2x1";
+	break;
+    case CORRELATOR_2X2:
+	cout << "2x2";
+	break;
+    case CORRELATOR_1X1_SSE3:
+        cout << "1x1-SSE3";
+	break;
+    case CORRELATOR_1X1_TIME_SSE3:
+	cout << "1x1-time-SSE3";
+	break;
+    case CORRELATOR_2X2_SSE3:
+	cout << "2x2-SSE3";
+	break;
+    case CORRELATOR_2X2_TIME_SSE3:
+	cout << "2x2-time-SSE3";
+	break;
+    case CORRELATOR_3X2_TIME_SSE3:
+	cout << "3x3-time-SSE3";
+	break;
+    default:
+	cout << "illegal correlator" << endl;
+	exit(66);
+    }
 }
 
 void* runCorrelator(void* data)
@@ -74,12 +108,18 @@ void* runCorrelator(void* data)
     params* p = (params*) data;
 
     for(unsigned i=0; i<iter; i++) {
-	switch (p->version) {
+	switch (p->correlatorType) {
 	case CORRELATOR_REFERENCE:
 	    p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
 	case CORRELATOR_1X1:
 	    p->ops = cpuCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	    break;
+	case CORRELATOR_2X1:
+	    p->ops = cpuCorrelator_2x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	    break;
+	case CORRELATOR_2X2:
+	    p->ops = cpuCorrelator_2x2(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
 	    break;
 	case CORRELATOR_1X1_SSE3:
 	    p->ops = cpuCorrelator_1x1_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
@@ -102,25 +142,12 @@ void* runCorrelator(void* data)
 	}
     }
 
-    p->ops *=iter;
+    p->ops *= iter;
     p->bytesLoaded *= iter;
-    p->bytesStored *=iter;
+    p->bytesStored *= iter;
 
-#if 0
-    unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
-    for (unsigned channel = 0; channel < nrChannels; channel ++) {
-      for (unsigned baseline = 0; baseline < nrBaselines; baseline ++) {
-	for (unsigned pol0 = 0; pol0 < 2; pol0 ++) {
-	  for (unsigned pol1 = 0; pol1 < 2; pol1 ++) {
-	    std::cout.precision(15);
-	    std::cout << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0)] << ", " 
-		      << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1)]
-		      << std::endl;
-
-	  }
-	}
-      }
-    }
+#if PRINT_RESULT
+    printResult(visibilities, nrChannels, nrBaselines);
 #endif
 
     return 0;
@@ -128,137 +155,59 @@ void* runCorrelator(void* data)
 
 int main()
 {
-  pthread_t threads[nrThreads];
-  
-  auto start_time = chrono::high_resolution_clock::now();
+    cout << "timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
+    cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
+	    " baselines, " << nrChannels << " channels, " << nrTimes << " time samples" << endl;
 
-  for(unsigned i=0; i<nrThreads; i++) {
-    if (pthread_create(&threads[i], 0, calcMaxFlops, 0) != 0) {
-      std::cout << "could not create thread" << std::endl;
-      exit(1);
-    }
-  }
+    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
+    const unsigned visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS*NR_POLARIZATIONS*2;
 
-  for(unsigned i=0; i<nrThreads; i++) {
-    if (pthread_join(threads[i], 0) != 0) {
-      std::cout << "could not join thread" << std::endl;
-      exit(1);
-    }
-  }
+    cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
+	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
 
-    auto end_time = chrono::high_resolution_clock::now();
-    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    double elapsed = (double) nanos / 1.0E9;
-
-    unsigned long long gigaOps = 16L * 4L * nrThreads; 
-    double maxGflops = (double) gigaOps / elapsed; 
-
-    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
+    __m128 dummyData;
+    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, &dummyData);
     cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
 
-    const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
+    float* samples = new float[nrThreads*nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2];
+    float* visibilities= new float[nrThreads*nrBaselines*nrChannels*NR_POLARIZATIONS*NR_POLARIZATIONS*2];
+    memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
 
-    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*nrPolarizations*2;
-    const unsigned visArraySize = nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2;
+    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
 
-    float* samples = new float[nrThreads*nrStations*nrChannels*nrTimesWidth*nrPolarizations*2];
-    float* visibilities= new float[nrThreads*nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2];
+    spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-#if 0
-    for (unsigned time = 0; time < nrTimes; time ++) {
-	samples[0][7][time][0] = 1;
-	samples[0][7][time][1] = complex<float>(3, 4);
-	samples[5][7][time][0] = 1;
-    }
-#else
-    for(unsigned t = 0; t<nrThreads; t++) {
-	for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	    for (unsigned stat = 0; stat < nrStations; stat ++) {
-		for (unsigned time = 0; time < nrTimes; time ++) {
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
-		    
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
-		}
-	    }
-	}
-    } 
-#endif
+    spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    params p[nrThreads];
+    spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    start_time = chrono::high_resolution_clock::now();
-    for(unsigned t=0; t<nrThreads; t++) {
-	p[t].ops = 0;
-	p[t].bytesLoaded = 0;
-	p[t].bytesStored = 0;
-	p[t].samples = &samples[t*arraySize];
-	p[t].visibilities = &visibilities[t*visArraySize];
-	p[t].version = CORRELATOR_3X2_TIME_SSE3; // CHANGE THIS TO USE ANOTHER VERSION
+    spawnCorrelatorThreads(CORRELATOR_1X1_SSE3, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-	if (pthread_create(&threads[t], 0, runCorrelator, &p[t]) != 0) {
-	    std::cout << "could not create thread" << std::endl;
-	    exit(1);
-	}
-    }
+    spawnCorrelatorThreads(CORRELATOR_1X1_TIME_SSE3, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    unsigned long long ops=0, bytesLoaded=0, bytesStored=0;
-    for(unsigned t=0; t<nrThreads; t++) {
-	if (pthread_join(threads[t], 0) != 0) {
-	    std::cout << "could not join thread" << std::endl;
-	    exit(1);
-	}
-	ops += p[t].ops;
-	bytesLoaded += p[t].bytesLoaded;
-	bytesStored += p[t].bytesStored;
-    }
-    end_time = chrono::high_resolution_clock::now();
+    spawnCorrelatorThreads(CORRELATOR_2X2_SSE3, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    elapsed = (double) nanos / 1.0E9;
-    double flops = (ops / elapsed) / 1000000000.0;
-    double efficiency = (flops / maxGflops) * 100.0;
+    spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    cout << "correlate took " << elapsed << " s, max Gflops = " << maxGflops << ", achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
-    
-    double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
-    double mbsStore = (double) (bytesStored / (1024.0 * 1024.0)) / elapsed;
+    spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    cout << "throughput: " << gbsLoad << " GB/s load, " << mbsStore << " MB/s store" << endl;
-
-    std::cout.precision(15);
-    std::cout << visibilities[VISIBILITIES_INDEX(BASELINE(0, 0), 7, 0, 0, 0)] << ", " 
-	      << visibilities[VISIBILITIES_INDEX(BASELINE(0, 0), 7, 0, 0, 1)]
-	      << std::endl;
-
-    std::cout << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 0, 0)]  << ", " 
-	      << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 0, 1)] 
-	      << std::endl;
-
-    std::cout << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 1, 0)]  << ", " 
-	      << visibilities[VISIBILITIES_INDEX(BASELINE(0, 4), 7, 0, 1, 1)] 
-	      << std::endl;
-
-#if 0
-    complex<float> *checkVis = new complex<float>[visibilitiesSize / sizeof(complex<float>)];
-    correlateOnHost(samples[0], checkVis);
-    std::cout << checkVis[BASELINE(0, 0)][7][0][0] << std::endl;
-    std::cout << checkVis[BASELINE(0, 4)][7][0][0] << std::endl;
-    std::cout << checkVis[BASELINE(0, 4)][7][0][1] << std::endl;
-
-    for (unsigned channel = 0; channel < nrChannels; channel ++)
-	for (unsigned baseline = 0; baseline < nrBaselines; baseline ++)
-	    for (unsigned pol0 = 0; pol0 < 2; pol0 ++)
-		for (unsigned pol1 = 0; pol1 < 2; pol1 ++) {
-		    size_t index = VISIBILITIES_INDEX(baseline, channel, pol0, pol1);
-
-		    if (visibilities[index] != checkVis[index])
-			std::cout << "channel = " << channel << ", baseline = " << baseline << ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[index] << " != " << checkVis[index] << std::endl;
-		}
-
-    delete [] checkVis;
-#endif
+    endCommon();
 
     delete[] samples;
     delete[] visibilities;
