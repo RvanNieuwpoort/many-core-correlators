@@ -1,10 +1,10 @@
 #include "cpu_correlator.h"
-#include "timer.h"
 
 #include <complex>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
+#include <chrono>
 #include <emmintrin.h>
 
 using namespace std;
@@ -130,8 +130,7 @@ int main()
 {
   pthread_t threads[nrThreads];
   
-  timer calcTimer("calc");
-  calcTimer.start();
+  auto start_time = chrono::high_resolution_clock::now();
 
   for(unsigned i=0; i<nrThreads; i++) {
     if (pthread_create(&threads[i], 0, calcMaxFlops, 0) != 0) {
@@ -146,15 +145,16 @@ int main()
       exit(1);
     }
   }
-  calcTimer.stop();
 
-  double time = calcTimer.getTimeInSeconds();
+    auto end_time = chrono::high_resolution_clock::now();
+    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
+    double elapsed = (double) nanos / 1.0E9;
 
-  unsigned long long tmpOps = 16L * 4L * nrThreads;
+    unsigned long long gigaOps = 16L * 4L * nrThreads; 
+    double maxGflops = (double) gigaOps / elapsed; 
 
-  double maxFlops = (double)tmpOps / time; // gigaflops
-
-  cout << "total maxFlops with " << nrThreads << " threads is: " << maxFlops << std::endl;
+    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
+    cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
 
     const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
 
@@ -187,9 +187,8 @@ int main()
 #endif
 
     params p[nrThreads];
-    timer totalTimer("total");
 
-    totalTimer.start();
+    auto start_time = chrono::high_resolution_clock::now();
     for(unsigned t=0; t<nrThreads; t++) {
 	p[t].ops = 0;
 	p[t].bytesLoaded = 0;
@@ -214,11 +213,13 @@ int main()
 	bytesLoaded += p[t].bytesLoaded;
 	bytesStored += p[t].bytesStored;
     }
-    totalTimer.stop();
+    auto end_time = chrono::high_resolution_clock::now();
 
-    double elapsed = totalTimer.getTimeInSeconds();
+    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
+    double elapsed = (double) nanos / 1.0E9;
     double flops = (ops / elapsed) / 1000000000.0;
     double efficiency = (flops / maxFlops) * 100.0;
+
     cout << "correlate took " << elapsed << " s, max Gflops = " << maxFlops << ", achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
     
     double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
