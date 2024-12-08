@@ -1,5 +1,4 @@
 #include "../common/common.h"
-#include "../common/cpu_correlator.h"
 #include "riscv_correlator.h"
 
 #include <cstring> 
@@ -17,13 +16,14 @@
 
 using namespace std;
 
-const bool validateResults = false;
-const unsigned nrStations = 64;
-const unsigned nrBaselines = NR_BASELINES(nrStations);
-const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-const unsigned nrChannels = 256;
-const unsigned iter = 1;
-const unsigned nrThreads = 8;
+static const bool validateResults = false;
+static const bool verbose = true;
+static const unsigned nrStations = 64;
+static const unsigned nrBaselines = NR_BASELINES(nrStations);
+static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
+static const unsigned nrChannels = 256;
+static const unsigned iter = 1;
+static const unsigned nrThreads = 8;
 
 vfloat32m8_t init_vfloat32m8(const float val)
 {
@@ -52,7 +52,7 @@ void print_vfloat32m8(const vfloat32m8_t f, const char* name)
 #endif
 }
 
-void* runMaxFlopsTest(void* /* unused */)
+void* calcMaxFlops(void* /* unused */)
 {
     // Do a simple vectorized computation here to compute the maximum peak performance.
     // Vectors are 256 bit, so 8 32 bit floats.
@@ -171,8 +171,6 @@ void* runCorrelator(void* data)
     return 0;
 }
 
-
-
 int main()
 {
     // set the vector length
@@ -188,23 +186,29 @@ int main()
     cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
 	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
 
-    double maxFlops = computeMaxFlops();
-   
+    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, NULL);
+    cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
+
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
     memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
 
-    initSamples(samples, arraySize);
+    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
 
-    spawnCorrelatorThreads(CORRELATOR_1X1, samples, arraySize, visibilities, visArraySize, true, maxFlops);
-    checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
+    spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    spawnCorrelatorThreads(CORRELATOR_2X1, samples, arraySize, visibilities, visArraySize, true, maxFlops);
-    checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
+    spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
-    spawnCorrelatorThreads(CORRELATOR_2X2, samples, arraySize, visibilities, visArraySize, true, maxFlops);
-    checkResult(samples, arraySize, visibilities, visArraySize, maxFlops);
+    spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
+			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			   nrThreads, iter, maxGflops, verbose, validateResults);
 
+    endCommon();
+    
     delete[] samples;
     delete[] visibilities;
 
