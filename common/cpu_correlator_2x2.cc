@@ -1,10 +1,10 @@
-#include "../common/common.h"
-#include "riscv_correlator.h"
+#include "common.h"
+#include "cpu_correlator.h"
 #include <iostream>
 
 using namespace std;
 
-unsigned long long riscvCorrelator_2x2(const float* __restrict__ samples, float* __restrict__ visibilities,
+unsigned long long cpuCorrelator_2x2(const float* __restrict__ samples, float* __restrict__ visibilities,
 				       const unsigned nrTimes, const unsigned nrTimesWidth,
 				       const unsigned nrStations, const unsigned nrChannels,
 				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
