@@ -11,6 +11,8 @@
 
 using namespace std;
 
+#define VECTOR_WIDTH_IN_FLOATS 4
+
 static const bool verbose = true;
 static const bool validateResults = true;
 static const unsigned nrStations = 64;
@@ -21,49 +23,85 @@ static const unsigned iter = 1;
 static const unsigned nrThreads = 32;
 
 
+void print_m128(__m128 a, const char* name)
+{
+    float result[VECTOR_WIDTH_IN_FLOATS];
+    for(int i=0; i<VECTOR_WIDTH_IN_FLOATS; i++) {
+	result[i] = -1.0f;
+    }
+
+    _mm_store_ps(result, a);
+
+#if 0
+    cout << "float vec " << name << " = { ";
+    for(int i=0; i<VECTOR_WIDTH_IN_FLOATS; i++) {
+	cout << result[i] << " ";
+    }
+    cout << " }" << endl;
+#endif
+}
+
 void* calcMaxFlops(void* data)
 {
-  __m128 a = _mm_set_ps1(1.0);
-  __m128 b = _mm_set_ps1(1.0);
-  __m128 c = _mm_set_ps1(1.0);
-  __m128 d = _mm_set_ps1(1.0);
-  __m128 e = _mm_set_ps1(1.0);
-  __m128 f = _mm_set_ps1(1.0);
-  __m128 g = _mm_set_ps1(1.0);
-  __m128 h = _mm_set_ps1(1.0);
-  __m128 i = _mm_set_ps1(0.0);
-  __m128 j = _mm_set_ps1(0.0);
-  __m128 k = _mm_set_ps1(0.0);
-  __m128 l = _mm_set_ps1(0.0);
-  __m128 m = _mm_set_ps1(0.0);
-  __m128 n = _mm_set_ps1(0.0);
-  __m128 o = _mm_set_ps1(0.0);
-  __m128 p = _mm_set_ps1(0.0);
+  __m128 a = _mm_set_ps1(0.2E-9f);
+  __m128 b = _mm_set_ps1(0.3E-9f);
+  __m128 c = _mm_set_ps1(0.4E-9f);
+  __m128 d = _mm_set_ps1(0.5E-9f);
+  __m128 e = _mm_set_ps1(0.6E-9f);
+  __m128 f = _mm_set_ps1(0.7E-9f);
+  __m128 g = _mm_set_ps1(0.8E-9f);
+  __m128 h = _mm_set_ps1(0.9E-9f);
+  __m128 i = _mm_set_ps1(0.10E-9f);
+  __m128 j = _mm_set_ps1(0.11E-9f);
+  __m128 k = _mm_set_ps1(0.12E-9f);
+  __m128 l = _mm_set_ps1(0.13E-9f);
+  __m128 m = _mm_set_ps1(0.14E-9f);
+  __m128 n = _mm_set_ps1(0.15E-9f);
+  __m128 o = _mm_set_ps1(0.16E-9f);
+  __m128 p = _mm_set_ps1(0.17E-9f);
 
   volatile __m128 result;
 
-  for (unsigned long long x = 0; x < 1000000000L; x ++) {
-    a *= a;
-    b *= b;
-    c *= c;
-    d *= d;
-    e *= e;
-    f *= f;
-    g *= g;
-    h *= h;
-    i += i;
-    j += j;
-    k += k;
-    l += l;
-    m += m;
-    n += n;
-    o += o;
-    p += p;
+  for (unsigned long long x = 0; x < 1000000000L; x++) {
+    a += a * b;
+    b += b * c;
+    c += c * d;
+    d += d * e;
+    e += e * f;
+    f += f * g;
+    g += g * h;
+    h += h * i;
+    i += i * j;
+    j += j * k;
+    k += k * l;
+    l += l * m;
+    m += m * n;
+    n += n * p;
+    o += o * p;
+    p += p * a;
   }
 
   result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p;
   *(__m128*)data = result;
 
+    // Print results just to make sure the compiler doesn't optimize everything away.
+  print_m128(a, "a");
+  print_m128(b, "b");
+  print_m128(c, "c");
+  print_m128(d, "d");
+  print_m128(e, "e");
+  print_m128(f, "f");
+  print_m128(g, "g");
+  print_m128(h, "h");
+  print_m128(i, "i");
+  print_m128(j, "j");
+  print_m128(k, "k");
+  print_m128(l, "l");
+  print_m128(m, "m");
+  print_m128(n, "n");
+  print_m128(o, "o");
+  print_m128(p, "p");
+  
   return 0;
 }
 
