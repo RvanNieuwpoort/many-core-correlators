@@ -188,7 +188,7 @@ int main()
 
     params p[nrThreads];
 
-    auto start_time = chrono::high_resolution_clock::now();
+    start_time = chrono::high_resolution_clock::now();
     for(unsigned t=0; t<nrThreads; t++) {
 	p[t].ops = 0;
 	p[t].bytesLoaded = 0;
@@ -213,14 +213,14 @@ int main()
 	bytesLoaded += p[t].bytesLoaded;
 	bytesStored += p[t].bytesStored;
     }
-    auto end_time = chrono::high_resolution_clock::now();
+    end_time = chrono::high_resolution_clock::now();
 
-    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    double elapsed = (double) nanos / 1.0E9;
+    nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
+    elapsed = (double) nanos / 1.0E9;
     double flops = (ops / elapsed) / 1000000000.0;
-    double efficiency = (flops / maxFlops) * 100.0;
+    double efficiency = (flops / maxGflops) * 100.0;
 
-    cout << "correlate took " << elapsed << " s, max Gflops = " << maxFlops << ", achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
+    cout << "correlate took " << elapsed << " s, max Gflops = " << maxGflops << ", achieved " << flops << " Gflops, " << efficiency << " % efficiency" << endl;
     
     double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
     double mbsStore = (double) (bytesStored / (1024.0 * 1024.0)) / elapsed;
