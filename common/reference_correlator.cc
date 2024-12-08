@@ -2,7 +2,6 @@
 #include <iostream>
 
 #include "../common/common.h"
-#include "riscv_correlator.h"
 
 using namespace std;
 

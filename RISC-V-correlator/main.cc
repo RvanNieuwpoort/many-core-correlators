@@ -1,3 +1,4 @@
+#include "../common/common.h"
 #include "riscv_correlator.h"
 
 #include <cstring> 
@@ -20,7 +21,6 @@ const unsigned nrStations = 64;
 const unsigned nrBaselines = nrStations * (nrStations + 1) / 2;
 const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
 const unsigned nrChannels = 256;
-const unsigned nrPolarizations = 2;
 const unsigned iter = 1;
 const unsigned nrThreads = 8;
 
@@ -124,6 +124,36 @@ void* calcMaxFlops(void* /* unused */)
     return 0;
 }
 
+double computeMaxFlops()
+{
+    pthread_t threads[nrThreads];
+  
+    auto start_time = chrono::high_resolution_clock::now();
+
+    for(unsigned i=0; i<nrThreads; i++) {
+	if (pthread_create(&threads[i], 0, calcMaxFlops, 0) != 0) {
+	    std::cout << "could not create thread" << std::endl;
+	    exit(1);
+	}
+    }
+
+    for(unsigned i=0; i<nrThreads; i++) {
+	if (pthread_join(threads[i], 0) != 0) {
+	    std::cout << "could not join thread" << std::endl;
+	    exit(1);
+	}
+    }
+  
+    auto end_time = chrono::high_resolution_clock::now();
+    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
+    double elapsed = (double) nanos / 1.0E9;
+    unsigned long long gigaOps = 16L * nrThreads; 
+    double maxGflops = (double) gigaOps / elapsed; 
+    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
+    cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
+    return maxGflops;
+}
+
 void printCorrelatorType(int correlatorType)
 {
     switch (correlatorType) {
@@ -142,23 +172,6 @@ void printCorrelatorType(int correlatorType)
     default:
 	cout << "illegal correlator" << endl;
 	exit(66);
-    }
-}
-
-void printResult(float* visibilities)
-{
-    for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	for (unsigned baseline = 0; baseline < nrBaselines; baseline ++) {
-	    for (unsigned pol0 = 0; pol0 < 2; pol0 ++) {
-		for (unsigned pol1 = 0; pol1 < 2; pol1 ++) {
-		    std::cout.precision(15);
-		    std::cout << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0)] << ", " 
-			      << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1)]
-			      << std::endl;
-		    
-		}
-	    }
-	}
     }
 }
 
@@ -191,40 +204,10 @@ void* runCorrelator(void* data)
     p->bytesStored *= iter;
 
 #if PRINT_RESULT
-    printResult(visibilities);
+    printResult(visibilities, nrChannels, nrBaselines);
 #endif
 
     return 0;
-}
-
-double computeMaxFlops()
-{
-    pthread_t threads[nrThreads];
-  
-    auto start_time = chrono::high_resolution_clock::now();
-
-    for(unsigned i=0; i<nrThreads; i++) {
-	if (pthread_create(&threads[i], 0, calcMaxFlops, 0) != 0) {
-	    std::cout << "could not create thread" << std::endl;
-	    exit(1);
-	}
-    }
-
-    for(unsigned i=0; i<nrThreads; i++) {
-	if (pthread_join(threads[i], 0) != 0) {
-	    std::cout << "could not join thread" << std::endl;
-	    exit(1);
-	}
-    }
-  
-    auto end_time = chrono::high_resolution_clock::now();
-    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    double elapsed = (double) nanos / 1.0E9;
-    unsigned long long gigaOps = 16L * nrThreads; 
-    double maxGflops = (double) gigaOps / elapsed; 
-    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
-    cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
-    return maxGflops;
 }
 
 void spawnCorrelatorThreads(int correlatorType, const float* __restrict__ samples, const unsigned arraySize,
@@ -321,8 +304,8 @@ void checkResult(float* samples, const unsigned arraySize,
 	for (unsigned stat1 = 0; stat1 < nrStations; stat1 ++) {
 	    for (unsigned stat0 = 0; stat0 <= stat1; stat0 ++) {
 		for (unsigned time = 0; time < nrTimes; time ++) {
-		    for (unsigned pol0 = 0; pol0 < 2; pol0 ++) {
-			for (unsigned pol1 = 0; pol1 < 2; pol1 ++) { 
+		    for (unsigned pol0 = 0; pol0 < NR_POLARIZATIONS; pol0 ++) {
+			for (unsigned pol1 = 0; pol1 < NR_POLARIZATIONS; pol1 ++) { 
 			    unsigned baseline = BASELINE(stat0, stat1);
 			    unsigned vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
 			    unsigned vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
@@ -356,11 +339,10 @@ int main()
     cout << "vector length = " << vl << " 32 bit floats, ";
     cout << "timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
     cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
-	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, "
-	 << nrPolarizations << " polarizations"  << endl;
+	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples" << endl;
 
-    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*nrPolarizations*2;
-    const unsigned visArraySize = nrBaselines*nrChannels*nrPolarizations*nrPolarizations*2;
+    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
+    const unsigned visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS* NR_POLARIZATIONS*2;
 
     cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
 	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
