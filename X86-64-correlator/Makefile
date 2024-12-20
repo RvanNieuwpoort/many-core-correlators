@@ -1,15 +1,18 @@
 CC		= g++
-ICC		= /opt/intel/cc/10.1.012/bin/icc
-CC_FLAGS	= -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse
-ICC_FLAGS	= -O3 -msse3 -Wall -march=nocona
+#CC_FLAGS	= -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse
+CC_FLAGS	= -O3 -mavx512f -Wall -march=nocona -m64 -mfpmath=sse
 CC_LINK_FLAGS   = -m64 -lpthread
+
+ICC		= /opt/intel/cc/10.1.012/bin/icc
+ICC_FLAGS	= -O3 -msse3 -Wall -march=nocona
 
 CC_SOURCES	= ../common/common.cc ../common/reference_correlator.cc \
 		  ../common/cpu_correlator_1x1.cc ../common/cpu_correlator_2x1.cc \
 		  ../common/cpu_correlator_2x2.cc main.cc \
-		  cpu_correlator_1x1_sse3.cc cpu_correlator_1x1_sse3.cc \
-		  cpu_correlator_1x1_time_sse3.cc cpu_correlator_2x2_sse3.cc \
-		  cpu_correlator_2x2_time_sse3.cc cpu_correlator_3x2_time_sse3.cc
+		  cpu_correlator_1x1_sse3.cc cpu_correlator_1x1_time_sse3.cc \
+		  cpu_correlator_2x2_sse3.cc cpu_correlator_2x2_time_sse3.cc \
+		  cpu_correlator_3x2_time_sse3.cc \
+		  cpu_correlator_1x1_time_avx512.cc 
 
 CC_OBJECTS	= $(CC_SOURCES:%.cc=%.o)
 

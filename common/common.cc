@@ -37,14 +37,19 @@ void printResult(const float* visibilities, const unsigned nrChannels, const uns
     }
 }
 
-double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void *), void* data)
+double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void *), void* /* unused */)
 {
     pthread_t threads[nrThreads];
-  
+
+    FlopTestParams p[nrThreads];
+    for(unsigned t=0; t<nrThreads; t++) {
+	p[t].gFlops = 0;
+    }
+    
     auto start_time = chrono::high_resolution_clock::now();
 
     for(unsigned i=0; i<nrThreads; i++) {
-	if (pthread_create(&threads[i], 0, runMaxFlopsTest, data) != 0) {
+	if (pthread_create(&threads[i], 0, runMaxFlopsTest, &p[i]) != 0) {
 	    std::cout << "could not create thread" << std::endl;
 	    exit(1);
 	}
@@ -60,8 +65,12 @@ double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void
     auto end_time = chrono::high_resolution_clock::now();
     long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
     double elapsed = (double) nanos / 1.0E9;
-    unsigned long long gigaOps = 16L * nrThreads; 
-    double maxGflops = (double) gigaOps / elapsed; 
+
+    unsigned long long gFlops = 0L;
+    for(unsigned t=0; t<nrThreads; t++) {
+	gFlops += p[t].gFlops;
+    }
+    double maxGflops = (double) gFlops / elapsed; 
 //    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
 
     return maxGflops;
@@ -154,7 +163,7 @@ void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
     }
 
     pthread_t threads[nrThreads];
-    params p[nrThreads];
+    CorrelatorParams p[nrThreads];
     for(unsigned t=0; t<nrThreads; t++) {
 	p[t].ops = 0;
 	p[t].bytesLoaded = 0;

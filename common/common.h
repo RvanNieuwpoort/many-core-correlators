@@ -65,7 +65,7 @@ extern unsigned long long cpuCorrelator_2x2(const float* __restrict__ samples, f
 					      const unsigned nrStations, const unsigned nrChannels,
 					      unsigned long long* bytesLoaded, unsigned long long* bytesStored);
 
-class params {
+class CorrelatorParams {
 public:
     int correlatorType;
     bool verbose;
@@ -73,6 +73,11 @@ public:
     const float* __restrict__ samples; 
     float* visibilities;
     unsigned long long ops, bytesLoaded, bytesStored;
+};
+
+class FlopTestParams {
+public:
+    unsigned long long gFlops;
 };
 
 #endif // _COMMON_CORRELATOR_H

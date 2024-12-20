@@ -52,7 +52,7 @@ void print_vfloat32m8(const vfloat32m8_t f, const char* name)
 #endif
 }
 
-void* calcMaxFlops(void* /* unused */)
+void* calcMaxFlops(void* data)
 {
     // Do a simple vectorized computation here to compute the maximum peak performance.
     // Vectors are 256 bit, so 8 32 bit floats.
@@ -74,7 +74,7 @@ void* calcMaxFlops(void* /* unused */)
     vfloat32m8_t vo = init_vfloat32m8(0.16E-9f);
     vfloat32m8_t vp = init_vfloat32m8(0.17E-9f);
         
-    // We do 16 ops in the loop. 1 FMA * 8 floats.
+    // We do 16 ops per line in the loop. 1 FMA * 8 floats.
     for (unsigned long long x = 0; x < (1E9L/(16*16)); x++) {
 	va = __riscv_vfmacc_vv_f32m8(va, va, va, VECTOR_WIDTH_IN_FLOATS);
 	vb = __riscv_vfmacc_vv_f32m8(vb, vb, vb, VECTOR_WIDTH_IN_FLOATS);
@@ -94,6 +94,10 @@ void* calcMaxFlops(void* /* unused */)
 	vp = __riscv_vfmacc_vv_f32m8(vp, vp, vp, VECTOR_WIDTH_IN_FLOATS);
     }
 
+
+    FlopTestParams* p = (FlopTestParams*) data;
+    p->gFlops = VECTOR_WIDTH_IN_FLOATS * 16 * 2; 
+    
     // Print results just to make sure the compiler doesn't optimize everything away.
     print_vfloat32m8(va, "va");
     print_vfloat32m8(vb, "vb");
@@ -138,7 +142,7 @@ void printCorrelatorType(int correlatorType)
 
 void* runCorrelator(void* data)
 {
-    params* p = (params*) data;
+    CorrelatorParams* p = (CorrelatorParams*) data;
 
     for(unsigned i=0; i<iter; i++) {
 	switch (p->correlatorType) {
