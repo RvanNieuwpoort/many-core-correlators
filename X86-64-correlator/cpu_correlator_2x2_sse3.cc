@@ -59,13 +59,25 @@ unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, flo
 						 const unsigned nrStations, const unsigned nrChannels,
 						 unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrCells = fillCellToStatTable(nrStations);
-    unsigned loopCount = LOOP_COUNT(nrCells, 1);
+    const unsigned nrBaselines = NR_BASELINES(nrStations);
+    bool missedBaselines[nrBaselines*2]; // we sometimes go beyond the #baslines, but then we don't store the visibilities, so that is ok.
+    for(unsigned baseline=0; baseline < nrBaselines; baseline++) {
+	missedBaselines[baseline] = true;
+    }
+
+    const unsigned nrCells = fillCellToStatTable(nrStations);
+    const unsigned loopCount = LOOP_COUNT(nrCells, 1);
 
     for (unsigned channel = 0; channel < nrChannels; channel++) {
 	for (unsigned cell = 0; cell < loopCount; cell++) {
 	    unsigned stat0 = cellToStatX[cell];
 	    unsigned stat2 = cellToStatY[cell];
+
+	    missedBaselines[BASELINE(stat0, stat2)] = false;
+	    missedBaselines[BASELINE(stat0+1, stat2)] = false;
+	    missedBaselines[BASELINE(stat0, stat2+1)] = false;
+	    missedBaselines[BASELINE(stat0+1, stat2+1)] = false;
+   
 	    unsigned index0 = SAMPLE_INDEX(stat0, channel, 0, 0, 0);
 	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
@@ -134,5 +146,13 @@ unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, flo
 	}
     }
 
-    return calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
+    unsigned long long missedBytesLoaded, missedBytesStored;
+    unsigned long long missedOps = computeMissedBaselines(samples, visibilities, missedBaselines,
+							  nrTimes, nrTimesWidth, nrStations, nrChannels,
+							  &missedBytesLoaded, &missedBytesStored);
+
+    unsigned long long ops = missedOps + calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
+    *bytesLoaded += missedBytesLoaded;
+    *bytesLoaded += missedBytesStored;
+    return ops;
 }

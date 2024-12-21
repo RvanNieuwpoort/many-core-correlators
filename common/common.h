@@ -44,6 +44,12 @@ extern void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (v
 				   const unsigned nrThreads, const unsigned iter, double maxFlops,
 				   const bool verbose, const bool validateResults);
 
+extern unsigned long long computeMissedBaselines(const float* __restrict__ samples, float* __restrict__ visibilities, 
+					  const bool* __restrict__ missedBaselines,
+					  const unsigned nrTimes, const unsigned nrTimesWidth,
+					  const unsigned nrStations, const unsigned nrChannels,
+					  unsigned long long* bytesLoaded, unsigned long long* bytesStored);
+
 extern void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void *),
 		 const float* __restrict__ visibilities, 
 		 const unsigned nrThreads,

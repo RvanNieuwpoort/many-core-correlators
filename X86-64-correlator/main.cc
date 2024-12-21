@@ -13,12 +13,12 @@ using namespace std;
 
 static const bool verbose = true;
 static const bool validateResults = true;
-static const unsigned nrStations = 16;
+static const unsigned nrStations = 64;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 2;
+static const unsigned nrChannels = 256;
 static const unsigned iter = 1;
-static const unsigned nrThreads = 8;
+static const unsigned nrThreads = 1;
 
 void printVectorType()
 {
@@ -77,8 +77,12 @@ void* calcMaxFlops(void* data)
 	p -= p * a;
     }
 
-    volatile __m512 result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p; // the volatile is to make sure the compiler doesnoptimiza everything away
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+    // the volatile is to make sure the compiler doesnoptimiza everything away
+    volatile __m512 result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p; 
+#pragma GCC diagnostic pop
+    
     FlopTestParams* params = (FlopTestParams*) data;
     params->gFlops = VECTOR_WIDTH_IN_FLOATS * 16 * 2; // 16 lines * FMAs (2 ops) vector width
     
@@ -138,7 +142,11 @@ void* calcMaxFlops(void* data)
 	o += o * a;
     }
 
-    volatile __m128 result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o; // the volatile is to make sure the compiler doesnoptimiza everything away
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+    // the volatile is to make sure the compiler doesnoptimiza everything away
+    volatile __m128 result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o; 
+#pragma GCC diagnostic pop
 
     FlopTestParams* params = (FlopTestParams*) data;
     params->gFlops = VECTOR_WIDTH_IN_FLOATS * 15 * 2; // 15 lines * FMAs (2 ops) vector width
@@ -180,7 +188,7 @@ void printCorrelatorType(int correlatorType)
 	cout << "3x3-time-SSE3";
 	break;
     case CORRELATOR_1X1_TIME_AVX512:
-	cout << "1x1-time-SSE3";
+	cout << "1x1-time-AVX512";
 	break;
     default:
 	cout << "illegal correlator" << endl;
@@ -263,7 +271,6 @@ int main()
 
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
-    memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
 
     initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
 
@@ -290,7 +297,7 @@ int main()
     spawnCorrelatorThreads(CORRELATOR_2X2_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
-
+/*
     spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
@@ -298,7 +305,7 @@ int main()
     spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
-
+*/
     spawnCorrelatorThreads(CORRELATOR_1X1_TIME_AVX512, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);

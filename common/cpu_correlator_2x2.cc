@@ -8,9 +8,20 @@ unsigned long long cpuCorrelator_2x2(const float* __restrict__ samples, float* _
 				       const unsigned nrStations, const unsigned nrChannels,
 				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
+    const unsigned nrBaselines = NR_BASELINES(nrStations);
+    bool missedBaselines[nrBaselines];
+    for(unsigned baseline=0; baseline < nrBaselines; baseline++) {
+	missedBaselines[baseline] = true;
+    }
+
     for (unsigned channel = 0; channel < nrChannels; channel++) {
 	for (unsigned stationY = 2; stationY < nrStations - 1; stationY += 2) {
 	    for (unsigned stationX = 0; stationX + 2 <= stationY; stationX += 2) {
+		missedBaselines[BASELINE(stationX, stationY)] = false;
+		missedBaselines[BASELINE(stationX+1, stationY)] = false;
+		missedBaselines[BASELINE(stationX, stationY+1)] = false;
+		missedBaselines[BASELINE(stationX+1, stationY+1)] = false;
+
 		float v0x2xr = 0, v0x2xi = 0;
 		float v0x2yr = 0, v0x2yi = 0;
 		float v0y2xr = 0, v0y2xi = 0;
@@ -177,9 +188,14 @@ unsigned long long cpuCorrelator_2x2(const float* __restrict__ samples, float* _
 	    }
 	}
     }
-    
+
+    unsigned long long missedBytesLoaded, missedBytesStored;
+    unsigned long long missedOps = computeMissedBaselines(samples, visibilities, missedBaselines,
+							  nrTimes, nrTimesWidth, nrStations, nrChannels,
+							  &missedBytesLoaded, &missedBytesStored);
+
     unsigned nrCells = calcNrCells(2, 2, nrStations);
-    *bytesLoaded = nrChannels * nrCells * nrTimes * 16L * sizeof(float); // samples
-    *bytesStored = nrChannels * nrCells * 8L * 4L * sizeof(float); // visibilities
-    return nrChannels * nrCells * nrTimes * 16L * 4L * 2L;
+    *bytesLoaded = missedBytesLoaded + nrChannels * nrCells * nrTimes * 16L * sizeof(float); // samples
+    *bytesStored = missedBytesStored + nrChannels * nrCells * 8L * 4L * sizeof(float); // visibilities
+    return missedOps + nrChannels * nrCells * nrTimes * 16L * 4L * 2L;
 }

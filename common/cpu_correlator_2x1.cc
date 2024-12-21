@@ -8,18 +8,28 @@ unsigned long long cpuCorrelator_2x1(const float* __restrict__ samples, float* _
 				       const unsigned nrStations, const unsigned nrChannels,
 				       unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    for (unsigned channel = 0; channel < nrChannels; channel++) {
-	for (unsigned stationY = 1; stationY < nrStations; stationY++) {
-	    for (unsigned stationX = 0; stationX + 2 <= stationY; stationX += 2) {
-		float s0xxr = 0, s0xxi = 0;
-		float s0xyr = 0, s0xyi = 0;
-		float s0yxr = 0, s0yxi = 0;
-		float s0yyr = 0, s0yyi = 0;
+    const unsigned nrBaselines = NR_BASELINES(nrStations);
+    bool missedBaselines[nrBaselines];
+    for(unsigned baseline=0; baseline < nrBaselines; baseline++) {
+	missedBaselines[baseline] = true;
+    }
 
-		float s1xxr = 0, s1xxi = 0;
-		float s1xyr = 0, s1xyi = 0;
-		float s1yxr = 0, s1yxi = 0;
-		float s1yyr = 0, s1yyi = 0;
+    for (unsigned channel = 0; channel < nrChannels; channel++) {
+	for (unsigned stationY = 0; stationY < nrStations; stationY++) {
+	    for (unsigned stationX = 0; stationX + 2 <= stationY; stationX += 2) {
+
+		missedBaselines[BASELINE(stationX, stationY)] = false;
+		missedBaselines[BASELINE(stationX+1, stationY)] = false;
+
+		float s0xxr = 0.0f, s0xxi = 0.0f;
+		float s0xyr = 0.0f, s0xyi = 0.0f;
+		float s0yxr = 0.0f, s0yxi = 0.0f;
+		float s0yyr = 0.0f, s0yyi = 0;
+
+		float s1xxr = 0.0f, s1xxi = 0.0f;
+		float s1xyr = 0.0f, s1xyi = 0.0f;
+		float s1yxr = 0.0f, s1yxi = 0.0f;
+		float s1yyr = 0.0f, s1yyi = 0.0f;
 
 		unsigned index0 = SAMPLE_INDEX(stationX,   channel, 0, 0, 0);
 		unsigned index1 = SAMPLE_INDEX(stationX+1, channel, 0, 0, 0);
@@ -29,7 +39,7 @@ unsigned long long cpuCorrelator_2x1(const float* __restrict__ samples, float* _
 		    float sample0xi = samples[index0+1];
 		    float sample0yr = samples[index0+2];
 		    float sample0yi = samples[index0+3];
-
+		    
 		    float sample1xr = samples[index1+0];
 		    float sample1xi = samples[index1+1];
 		    float sample1yr = samples[index1+2];
@@ -97,9 +107,14 @@ unsigned long long cpuCorrelator_2x1(const float* __restrict__ samples, float* _
 	    }
 	}
     }
+
+    unsigned long long missedBytesLoaded, missedBytesStored;
+    unsigned long long missedOps = computeMissedBaselines(samples, visibilities, missedBaselines,
+							  nrTimes, nrTimesWidth, nrStations, nrChannels,
+							  &missedBytesLoaded, &missedBytesStored);
     
     unsigned nrCells = calcNrCells(2, 1, nrStations);    
-    *bytesLoaded = nrChannels * nrCells * nrTimes * 8L * sizeof(float); // samples
-    *bytesStored = nrChannels * nrCells * 8L * 2L * sizeof(float); // visibilities
-    return nrChannels * nrCells * nrTimes * 16L * 2L * 2L;
+    *bytesLoaded = missedBytesLoaded + nrChannels * nrCells * nrTimes * 8L * sizeof(float); // samples
+    *bytesStored = missedBytesStored + nrChannels * nrCells * 8L * 2L * sizeof(float); // visibilities
+    return missedOps + nrChannels * nrCells * nrTimes * 16L * 2L * 2L;
 }
