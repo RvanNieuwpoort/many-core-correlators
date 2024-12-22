@@ -27,8 +27,6 @@
 #define CORRELATOR_1X1_TIME_AVX512 10
 
 
-#define LOOP_COUNT(NR_CELLS, NR_THREADS) ((NR_CELLS) + (NR_THREADS) - 1) / (NR_THREADS) * (NR_THREADS);
-
 extern unsigned long long cpuCorrelator_1x1_sse3(const float* __restrict__ samples, float* __restrict__ visibilities,
 						 unsigned nrTimes, const unsigned nrTimesWidth,
 						 const unsigned nrStations, const unsigned nrChannels,

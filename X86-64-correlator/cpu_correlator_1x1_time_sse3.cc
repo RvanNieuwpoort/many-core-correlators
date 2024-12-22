@@ -12,9 +12,9 @@ static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
 
 static unsigned fillCellToStatTable(const unsigned nrStations)
 {
-    unsigned baseline;
+    unsigned baseline = 0;
 
-    for (unsigned stat2 = baseline = 0; stat2 < nrStations; stat2 ++) {
+    for (unsigned stat2 = 0; stat2 < nrStations; stat2 ++) {
 	for (unsigned stat1 = 0; stat1 <= stat2; stat1 ++, baseline ++) {
 	    baselineToStat1[baseline] = stat1;
 	    baselineToStat2[baseline] = stat2;

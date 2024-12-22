@@ -66,18 +66,12 @@ unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, flo
     }
 
     const unsigned nrCells = fillCellToStatTable(nrStations);
-    const unsigned loopCount = LOOP_COUNT(nrCells, 1);
 
     for (unsigned channel = 0; channel < nrChannels; channel++) {
-	for (unsigned cell = 0; cell < loopCount; cell++) {
+	for (unsigned cell = 0; cell < nrCells; cell++) {
 	    unsigned stat0 = cellToStatX[cell];
 	    unsigned stat2 = cellToStatY[cell];
 
-	    missedBaselines[BASELINE(stat0, stat2)] = false;
-	    missedBaselines[BASELINE(stat0+1, stat2)] = false;
-	    missedBaselines[BASELINE(stat0, stat2+1)] = false;
-	    missedBaselines[BASELINE(stat0+1, stat2+1)] = false;
-   
 	    unsigned index0 = SAMPLE_INDEX(stat0, channel, 0, 0, 0);
 	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
@@ -138,6 +132,11 @@ unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, flo
 	    }
 
 	    if (cell < nrCells) {
+		missedBaselines[BASELINE(stat0, stat2)] = false;
+		missedBaselines[BASELINE(stat0+1, stat2)] = false;
+		missedBaselines[BASELINE(stat0, stat2+1)] = false;
+		missedBaselines[BASELINE(stat0+1, stat2+1)] = false;
+   
 		store(visibilities, stat0,   stat2,   channel, nrChannels, xxr_xyr_yxr_yyr_02, xxi_xyi_yxi_yyi_02);
 		store(visibilities, stat0+1, stat2,   channel, nrChannels, xxr_xyr_yxr_yyr_12, xxi_xyi_yxi_yyi_12);
 		store(visibilities, stat0,   stat2+1, channel, nrChannels, xxr_xyr_yxr_yyr_03, xxi_xyi_yxi_yyi_03);

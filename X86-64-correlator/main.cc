@@ -16,7 +16,7 @@ static const bool validateResults = true;
 static const unsigned nrStations = 64;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 256;
+static const unsigned nrChannels = 1;
 static const unsigned iter = 1;
 static const unsigned nrThreads = 1;
 
@@ -297,11 +297,12 @@ int main()
     spawnCorrelatorThreads(CORRELATOR_2X2_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
-/*
+
     spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
 
+/*
     spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);

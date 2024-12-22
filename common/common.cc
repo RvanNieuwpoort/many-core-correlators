@@ -27,6 +27,7 @@ void printResult(const float* visibilities, const unsigned nrChannels, const uns
 	    for (unsigned pol0 = 0; pol0 < NR_POLARIZATIONS; pol0 ++) {
 		for (unsigned pol1 = 0; pol1 < NR_POLARIZATIONS; pol1 ++) {
 		    std::cout.precision(15);
+		    std::cout << "BL " << baseline << " ";
 		    std::cout << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0)] << ", " 
 			      << visibilities[VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1)]
 			      << std::endl;
