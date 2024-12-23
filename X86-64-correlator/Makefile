@@ -1,10 +1,8 @@
 CC		= g++
-#CC_FLAGS	= -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse
-CC_FLAGS	= -O3 -mavx512f -Wall -march=nocona -m64 -mfpmath=sse
+#CC		= clang++
+#CC_FLAGS	= -std=c++17 -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse
+CC_FLAGS	= -std=c++17 -O3 -mavx512f -Wall -march=nocona -m64 -mfpmath=sse
 CC_LINK_FLAGS   = -m64 -lpthread
-
-ICC		= /opt/intel/cc/10.1.012/bin/icc
-ICC_FLAGS	= -O3 -msse3 -Wall -march=nocona
 
 CC_SOURCES	= ../common/common.cc ../common/reference_correlator.cc \
 		  ../common/cpu_correlator_1x1.cc ../common/cpu_correlator_2x1.cc \
