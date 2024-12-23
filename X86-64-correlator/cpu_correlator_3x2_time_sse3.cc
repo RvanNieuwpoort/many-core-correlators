@@ -45,6 +45,12 @@ unsigned long long cpuCorrelator_3x2_time_sse3(const float* __restrict__ samples
 						      const unsigned nrStations, const unsigned nrChannels,
 						      unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
+    const unsigned nrBaselines = NR_BASELINES(nrStations);
+    bool missedBaselines[nrBaselines*2]; // we sometimes go beyond the #baslines, but then we don't store the visibilities, so that is ok.
+    for(unsigned baseline=0; baseline < nrBaselines; baseline++) {
+	missedBaselines[baseline] = true;
+    }
+
     unsigned nrCells = fillCellToStatTable(nrStations);
 
     for (unsigned channel = 0; channel < nrChannels; channel++) {
@@ -246,69 +252,99 @@ unsigned long long cpuCorrelator_3x2_time_sse3(const float* __restrict__ samples
 	    }
 
 	    if(cell < nrCells) {
-		// store 8 floats per position, for a 3x2 cell that means 48 floats
-		unsigned vis_index = cell * 48;
+		missedBaselines[BASELINE(stat0+0, stat3+0)] = false;
+		missedBaselines[BASELINE(stat0+1, stat3+0)] = false;
+		missedBaselines[BASELINE(stat0+2, stat3+0)] = false;
+		missedBaselines[BASELINE(stat0+0, stat3+1)] = false;
+		missedBaselines[BASELINE(stat0+1, stat3+1)] = false;
+		missedBaselines[BASELINE(stat0+2, stat3+1)] = false;
+
+		unsigned visIndex;
 
 		// now, we have to sum the 4 values inside the regs.
 		__m128 tmp0, tmp1, xx_xy, tmp2, tmp3, yx_yy;
 
+		visIndex = VISIBILITIES_INDEX(BASELINE(stat0, stat3), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr03, xxi03);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
 		tmp1  = _mm_hadd_ps(xyr03, xyi03);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
 		xx_xy = _mm_hadd_ps(tmp0, tmp1);     // xxr, xxi, xyr,xyi
-		_mm_store_ps(visibilities + vis_index + 0, xx_xy);
+		_mm_store_ps(&(visibilities[visIndex+0]), xx_xy);
+
 		tmp2  = _mm_hadd_ps(yxr03, yxi03);
 		tmp3  = _mm_hadd_ps(yyr03, yyi03);
 		yx_yy = _mm_hadd_ps(tmp2, tmp3);
-		_mm_store_ps(visibilities + vis_index + 4, yx_yy);
+		_mm_store_ps(&(visibilities[visIndex+4]), yx_yy);
 
+		
+		visIndex = VISIBILITIES_INDEX(BASELINE(stat0+1, stat3), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr13, xxi13);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
 		tmp1  = _mm_hadd_ps(xyr13, xyi13);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
 		xx_xy = _mm_hadd_ps(tmp0, tmp1);     // xxr, xxi, xyr,xyi
-		_mm_store_ps(visibilities + vis_index + 8, xx_xy);
+		_mm_store_ps(&(visibilities[visIndex+0]), xx_xy);
+
 		tmp2  = _mm_hadd_ps(yxr13, yxi13);
 		tmp3  = _mm_hadd_ps(yyr13, yyi13);
 		yx_yy = _mm_hadd_ps(tmp2, tmp3);
-		_mm_store_ps(visibilities + vis_index + 12, yx_yy);
+		_mm_store_ps(&(visibilities[visIndex+4]), yx_yy);
+
 		
+		visIndex = VISIBILITIES_INDEX(BASELINE(stat0+2, stat3), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr23, xxi23);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
 		tmp1  = _mm_hadd_ps(xyr23, xyi23);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
 		xx_xy = _mm_hadd_ps(tmp0, tmp1);     // xxr, xxi, xyr,xyi
-		_mm_store_ps(visibilities + vis_index + 16, xx_xy);
+		_mm_store_ps(&(visibilities[visIndex+0]), xx_xy);
+
 		tmp2  = _mm_hadd_ps(yxr23, yxi23);
 		tmp3  = _mm_hadd_ps(yyr23, yyi23);
 		yx_yy = _mm_hadd_ps(tmp2, tmp3);
-		_mm_store_ps(visibilities + vis_index + 20, yx_yy);
+		_mm_store_ps(&(visibilities[visIndex+4]), yx_yy);
 		
 		
+		visIndex = VISIBILITIES_INDEX(BASELINE(stat0, stat3+1), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr04, xxi04);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
 		tmp1  = _mm_hadd_ps(xyr04, xyi04);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
 		xx_xy = _mm_hadd_ps(tmp0, tmp1);     // xxr, xxi, xyr,xyi
-		_mm_store_ps(visibilities + vis_index + 24, xx_xy);
+		_mm_store_ps(&(visibilities[visIndex+0]), xx_xy);
+
 		tmp2  = _mm_hadd_ps(yxr04, yxi04);
 		tmp3  = _mm_hadd_ps(yyr04, yyi04);
 		yx_yy = _mm_hadd_ps(tmp2, tmp3);
-		_mm_store_ps(visibilities + vis_index + 28, yx_yy);
+		_mm_store_ps(&(visibilities[visIndex+4]), yx_yy);
 		
+
+		visIndex = VISIBILITIES_INDEX(BASELINE(stat0+1, stat3+1), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr14, xxi14);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
 		tmp1  = _mm_hadd_ps(xyr14, xyi14);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
 		xx_xy = _mm_hadd_ps(tmp0, tmp1);     // xxr, xxi, xyr,xyi
-		_mm_store_ps(visibilities + vis_index + 32, xx_xy);
+		_mm_store_ps(&(visibilities[visIndex+0]), xx_xy);
+
 		tmp2  = _mm_hadd_ps(yxr14, yxi14);
 		tmp3  = _mm_hadd_ps(yyr14, yyi14);
 		yx_yy = _mm_hadd_ps(tmp2, tmp3);
-		_mm_store_ps(visibilities + vis_index + 36, yx_yy);
+		_mm_store_ps(&(visibilities[visIndex+4]), yx_yy);
 		
+	
+		visIndex = VISIBILITIES_INDEX(BASELINE(stat0+2, stat3+1), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr24, xxi24);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
 		tmp1  = _mm_hadd_ps(xyr24, xyi24);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
 		xx_xy = _mm_hadd_ps(tmp0, tmp1);     // xxr, xxi, xyr,xyi
-		_mm_store_ps(visibilities + vis_index + 40, xx_xy);
+		_mm_store_ps(&(visibilities[visIndex+0]), xx_xy);
+
 		tmp2  = _mm_hadd_ps(yxr24, yxi24);
 		tmp3  = _mm_hadd_ps(yyr24, yyi24);
 		yx_yy = _mm_hadd_ps(tmp2, tmp3);
-		_mm_store_ps(visibilities + vis_index + 44, yx_yy);
+		_mm_store_ps(&(visibilities[visIndex+4]), yx_yy);
 	    }
 	}
     }
 
-    return calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
+    unsigned long long missedBytesLoaded, missedBytesStored;
+    unsigned long long missedOps = computeMissedBaselines(samples, visibilities, missedBaselines,
+							  nrTimes, nrTimesWidth, nrStations, nrChannels,
+							  &missedBytesLoaded, &missedBytesStored);
+
+    unsigned long long ops = missedOps + calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
+    *bytesLoaded += missedBytesLoaded;
+    *bytesLoaded += missedBytesStored;
+   return ops;
 }

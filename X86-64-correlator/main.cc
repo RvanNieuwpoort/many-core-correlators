@@ -18,7 +18,7 @@ static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
 static const unsigned nrChannels = 256;
 static const unsigned iter = 1;
-static const unsigned nrThreads = 1;
+static const unsigned nrThreads = 8;
 
 void printVectorType()
 {
@@ -185,7 +185,7 @@ void printCorrelatorType(int correlatorType)
 	cout << "2x2-time-SSE3";
 	break;
     case CORRELATOR_3X2_TIME_SSE3:
-	cout << "3x3-time-SSE3";
+	cout << "3x2-time-SSE3";
 	break;
     case CORRELATOR_1X1_TIME_AVX512:
 	cout << "1x1-time-AVX512";
@@ -301,11 +301,11 @@ int main()
     spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
-/*
+
     spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
-*/
+
     spawnCorrelatorThreads(CORRELATOR_1X1_TIME_AVX512, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			   nrThreads, iter, maxGflops, verbose, validateResults);
