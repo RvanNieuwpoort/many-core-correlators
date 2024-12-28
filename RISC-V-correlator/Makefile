@@ -1,7 +1,7 @@
 CC		= g++
 CC_FLAGS	= -O3 -x c++ -march=rv64gcv_zba_zbb_zbs -Wall 
 
-#CC		= clang
+#CC		= clang++
 #CC_FLAGS	= -O3 -x c++ --target=riscv64 -march=rv64gcv_zba_zbb_zbs -Wall
 
 LINK_FLAGS   = -lpthread

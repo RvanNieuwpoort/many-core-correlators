@@ -16,7 +16,7 @@
 
 using namespace std;
 
-static const bool validateResults = false;
+static const bool validateResults = true;
 static const bool verbose = true;
 static const unsigned nrStations = 64;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
@@ -73,9 +73,9 @@ void* calcMaxFlops(void* data)
     vfloat32m8_t vn = init_vfloat32m8(0.15E-9f);
     vfloat32m8_t vo = init_vfloat32m8(0.16E-9f);
     vfloat32m8_t vp = init_vfloat32m8(0.17E-9f);
-        
+
     // We do 16 ops per line in the loop. 1 FMA * 8 floats.
-    for (unsigned long long x = 0; x < (1E9L/(16*16)); x++) {
+    for (unsigned long long x = 0; x < 1E9L / (VECTOR_WIDTH_IN_FLOATS*2*16); x++) {
 	va = __riscv_vfmacc_vv_f32m8(va, va, va, VECTOR_WIDTH_IN_FLOATS);
 	vb = __riscv_vfmacc_vv_f32m8(vb, vb, vb, VECTOR_WIDTH_IN_FLOATS);
 	vc = __riscv_vfmacc_vv_f32m8(vc, vc, vc, VECTOR_WIDTH_IN_FLOATS);
@@ -96,7 +96,7 @@ void* calcMaxFlops(void* data)
 
 
     FlopTestParams* p = (FlopTestParams*) data;
-    p->gFlops = VECTOR_WIDTH_IN_FLOATS * 16 * 2; 
+    p->gFlops = 1; 
     
     // Print results just to make sure the compiler doesn't optimize everything away.
     print_vfloat32m8(va, "va");
