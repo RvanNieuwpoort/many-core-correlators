@@ -9,9 +9,12 @@
 #include <chrono>
 #include <riscv_vector.h>
 
-#define VECTOR_WIDTH_IN_FLOATS 8
 #define PRINT_RESULT 0
+#define COMPUTE_GFLOPS 0
+
+#define VECTOR_WIDTH_IN_FLOATS 8
 #define ALIGNMENT 256 // in bytes
+#define REAL_PEAK_GFLOPS_PER_CORE (1.6 /*GHz*/ * 8 /*vector width*/ * 2 /*fma*/)
 
 
 using namespace std;
@@ -190,9 +193,13 @@ int main()
     cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
 	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
 
+#if COMPUTE_GFLOPS
     double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, NULL);
+#else 
+    double maxGflops = REAL_PEAK_GFLOPS_PER_CORE * nrThreads;
+#endif // COMPUTE_GFLOPS
     cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
-
+    
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
     memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
