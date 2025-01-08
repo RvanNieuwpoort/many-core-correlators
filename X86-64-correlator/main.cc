@@ -16,7 +16,7 @@ static const bool validateResults = true;
 static const unsigned nrStations = 256;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 350;
+static const unsigned nrChannels = 375;
 static const unsigned iter = 10000;
 static const unsigned nrThreads = 64;
 
@@ -79,7 +79,7 @@ void* calcMaxFlops(void* data)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
-    // the volatile is to make sure the compiler doesnoptimiza everything away
+    // the volatile is to make sure the compiler doesn't optimiza everything away
     volatile __m512 result = a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p; 
 #pragma GCC diagnostic pop
     
@@ -266,7 +266,7 @@ int main()
 	 << "vis array size = " << visArraySize * nrThreads << " elements = " << (((double)visArraySize * nrThreads * sizeof(float))/(1024.0*1024.0)) << " mbytes" << endl;
    
 //    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, 0);
-    double maxGflops = 1000.0;
+    double maxGflops = (2800.0 * 32 * 8 * 2)/1000.0; // For DAS-6: 2800 Mhz, 32 cores, 8-wide vectors, x2 for FMA
     cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
 
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
