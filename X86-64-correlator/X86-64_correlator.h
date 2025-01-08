@@ -8,7 +8,7 @@
 #elif defined(__AVX2__)
 #define VECTOR_WIDTH_IN_FLOATS 8 // 256 bit
 #elif defined(__AVX__)
-#define VECTOR_WIDTH_IN_FLOATS 8 // 156 bit
+#define VECTOR_WIDTH_IN_FLOATS 8 // 256 bit
 #elif defined(__SSE3__)
 #define VECTOR_WIDTH_IN_FLOATS 4 // 128 bit
 #else
@@ -16,8 +16,6 @@
 #endif
 
 #define ALIGNMENT 256 // in bytes
-
-#define MAX_CELLS 2048
 
 #define CORRELATOR_1X1_SSE3      5
 #define CORRELATOR_1X1_TIME_SSE3 6

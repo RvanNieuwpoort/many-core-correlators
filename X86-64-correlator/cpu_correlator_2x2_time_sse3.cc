@@ -6,7 +6,7 @@
 
 using namespace std;
 
-static unsigned char cellToStatX[MAX_CELLS], cellToStatY[MAX_CELLS];
+static unsigned char cellToStatX[MAX_NR_CELLS], cellToStatY[MAX_NR_CELLS];
 
 static unsigned fillCellToStatTable(unsigned nrStations)
 {

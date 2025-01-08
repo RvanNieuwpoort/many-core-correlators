@@ -1,12 +1,14 @@
 #ifndef _COMMON_CORRELATOR_H
 #define _COMMON_CORRELATOR_H
 
+#include <cstddef> // for size_t
+
 #define CORRELATOR_REFERENCE     1
 #define CORRELATOR_1X1           2
 #define CORRELATOR_2X1           3
 #define CORRELATOR_2X2           4
 
-#define MAX_NR_STATIONS 64
+#define MAX_NR_STATIONS 256
 #define MAX_NR_CELLS (MAX_NR_STATIONS * MAX_NR_STATIONS / 2)
 #define NR_POLARIZATIONS 2
 
@@ -23,7 +25,7 @@
 extern void endCommon(void);
 extern void initSamples(float* __restrict__ samples,
 			const unsigned nrThreads, const unsigned nrTimes, const unsigned nrTimesWidth,
-			const unsigned nrStations, const unsigned nrChannels, const unsigned arraySize);
+			const unsigned nrStations, const unsigned nrChannels, const size_t arraySize);
 
 extern unsigned long long referenceCorrelator(const float* __restrict__ samples, float* __restrict__ visibilities, 
 					      const unsigned nrTimes, const unsigned nrTimesWidth,
@@ -38,10 +40,10 @@ extern void printResult(const float* visibilities, const unsigned nrChannels, co
 extern double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void *), void* data);
 
 extern void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
-				   const float* __restrict__ samples, const unsigned arraySize,
-				   float* __restrict__ visibilities, const unsigned visArraySize,
+				   const float* __restrict__ samples, const size_t arraySize,
+				   float* __restrict__ visibilities, const size_t visArraySize,
 				   const unsigned nrTimes, const unsigned nrStations, const unsigned nrChannels,
-				   const unsigned nrThreads, const unsigned iter, double maxFlops,
+				   const unsigned nrThreads, double maxFlops,
 				   const bool verbose, const bool validateResults);
 
 extern unsigned long long computeMissedBaselines(const float* __restrict__ samples, float* __restrict__ visibilities, 
@@ -54,7 +56,7 @@ extern void checkResult(const float* __restrict__ samples, void *(*runCorrelator
 		 const float* __restrict__ visibilities, 
 		 const unsigned nrThreads,
 		 const unsigned nrTimes, const unsigned nrStations,
-		 const unsigned nrChannels, const unsigned arraySize, const unsigned visArraySize);
+		 const unsigned nrChannels, const size_t arraySize, const size_t visArraySize);
 
 extern unsigned long long cpuCorrelator_1x1(const float* __restrict__ samples, float* __restrict__ visibilities,
 					      const unsigned nrTimes, const unsigned nrTimesWidth,
@@ -75,7 +77,6 @@ class CorrelatorParams {
 public:
     int correlatorType;
     bool verbose;
-    unsigned iter;
     const float* __restrict__ samples; 
     float* visibilities;
     unsigned long long ops, bytesLoaded, bytesStored;

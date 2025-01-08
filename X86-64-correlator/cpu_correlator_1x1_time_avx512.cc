@@ -4,6 +4,8 @@
 
 #include "X86-64_correlator.h"
 
+#if defined(__AVX512F__)
+
 
 using namespace std;
 
@@ -111,3 +113,5 @@ unsigned long long cpuCorrelator_1x1_time_avx512(const float* __restrict__ sampl
     unsigned long long ops = nrChannels * nrBaselines * nrTimes * 16L * 2L;
     return ops;
 }
+
+#endif // defined(__AVX512F__)

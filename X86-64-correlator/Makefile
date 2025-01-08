@@ -1,7 +1,7 @@
 CC		= g++
 #CC		= clang++
-#CC_FLAGS	= -std=c++17 -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse
-CC_FLAGS	= -std=c++17 -O3 -mavx512f -Wall -march=nocona -m64 -mfpmath=sse
+CC_FLAGS	= -std=c++17 -O3 -msse3 -Wall -march=nocona -m64 -mfpmath=sse
+#CC_FLAGS	= -std=c++17 -O3 -mavx512f -Wall -march=nocona -m64 -mfpmath=sse
 CC_LINK_FLAGS   = -m64 -lpthread
 
 CC_SOURCES	= ../common/common.cc ../common/reference_correlator.cc \

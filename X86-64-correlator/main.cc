@@ -13,12 +13,12 @@ using namespace std;
 
 static const bool verbose = true;
 static const bool validateResults = true;
-static const unsigned nrStations = 64;
+static const unsigned nrStations = 256;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 256;
-static const unsigned iter = 1;
-static const unsigned nrThreads = 8;
+static const unsigned nrChannels = 350;
+static const unsigned iter = 10000;
+static const unsigned nrThreads = 64;
 
 void printVectorType()
 {
@@ -200,48 +200,44 @@ void* runCorrelator(void* data)
 {
     CorrelatorParams* p = (CorrelatorParams*) data;
 
-    for(unsigned i=0; i<iter; i++) {
-	switch (p->correlatorType) {
-	case CORRELATOR_REFERENCE:
-	    p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_1X1:
-	    p->ops = cpuCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_2X1:
-	    p->ops = cpuCorrelator_2x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_2X2:
-	    p->ops = cpuCorrelator_2x2(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_1X1_SSE3:
-	    p->ops = cpuCorrelator_1x1_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_1X1_TIME_SSE3:
-	    p->ops = cpuCorrelator_1x1_time_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_2X2_SSE3:
-	    p->ops = cpuCorrelator_2x2_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_2X2_TIME_SSE3:
-	    p->ops = cpuCorrelator_2x2_time_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_3X2_TIME_SSE3:
-	    p->ops = cpuCorrelator_3x2_time_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	case CORRELATOR_1X1_TIME_AVX512:
-	    p->ops = cpuCorrelator_1x1_time_avx512(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
-	    break;
-	default:
-	    cout << "illegal correlator" << endl;
-	    exit(66);
-	}
+    switch (p->correlatorType) {
+    case CORRELATOR_REFERENCE:
+	p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_1X1:
+	p->ops = cpuCorrelator_1x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_2X1:
+	p->ops = cpuCorrelator_2x1(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_2X2:
+	p->ops = cpuCorrelator_2x2(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_1X1_SSE3:
+	p->ops = cpuCorrelator_1x1_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_1X1_TIME_SSE3:
+	p->ops = cpuCorrelator_1x1_time_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_2X2_SSE3:
+	p->ops = cpuCorrelator_2x2_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_2X2_TIME_SSE3:
+	p->ops = cpuCorrelator_2x2_time_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+    case CORRELATOR_3X2_TIME_SSE3:
+	p->ops = cpuCorrelator_3x2_time_sse3(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+#if defined(__AVX512F__)
+    case CORRELATOR_1X1_TIME_AVX512:
+	p->ops = cpuCorrelator_1x1_time_avx512(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
+	break;
+#endif // defined(__AVX512F__)
+    default:
+	cout << "illegal correlator" << endl;
+	exit(66);
     }
-
-    p->ops *= iter;
-    p->bytesLoaded *= iter;
-    p->bytesStored *= iter;
-
+    
 #if PRINT_RESULT
     printResult(visibilities, nrChannels, nrBaselines);
 #endif
@@ -251,65 +247,75 @@ void* runCorrelator(void* data)
 
 int main()
 {
+    if(nrStations > MAX_NR_STATIONS) {
+	cerr << "Cannot use more than " << MAX_NR_STATIONS << " stations." << endl;
+    }
+
     cout << "using ";
     printVectorType();
     cout << " vector extensions" << endl;
 
     cout << "timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
     cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
-	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples" << endl;
+	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, " << iter << " iterations" << endl;
 
-    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
-    const unsigned visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS*NR_POLARIZATIONS*2;
+    const size_t arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
+    const size_t visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS*NR_POLARIZATIONS*2;
 
-    cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
-	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
+    cout << "sample array size = " << arraySize * nrThreads << " elements = " << (((double)arraySize * nrThreads * sizeof(float))/(1024.0*1024.0*1024.0)) << " gbytes, "
+	 << "vis array size = " << visArraySize * nrThreads << " elements = " << (((double)visArraySize * nrThreads * sizeof(float))/(1024.0*1024.0)) << " mbytes" << endl;
    
-    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, 0);
-//    double maxGflops = 100.0;
+//    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, 0);
+    double maxGflops = 1000.0;
     cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
 
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
 
-    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
+    for(size_t i=0; i<iter; i++) {
 
+    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
+/*
     spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+			   nrThreads, maxGflops, verbose, validateResults);
 
     spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+			   nrThreads, maxGflops, verbose, validateResults);
 
     spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+			   nrThreads, maxGflops, verbose, validateResults);
 
     spawnCorrelatorThreads(CORRELATOR_1X1_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+			   nrThreads, maxGflops, verbose, validateResults);
 
     spawnCorrelatorThreads(CORRELATOR_1X1_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
-
+			   nrThreads, maxGflops, verbose, validateResults);
+*/
     spawnCorrelatorThreads(CORRELATOR_2X2_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
-
+			   nrThreads, maxGflops, verbose, validateResults);
+/*
     spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+			   nrThreads, maxGflops, verbose, validateResults);
 
     spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+			   nrThreads, maxGflops, verbose, validateResults);
 
+#if defined(__AVX512F__)
     spawnCorrelatorThreads(CORRELATOR_1X1_TIME_AVX512, runCorrelator, samples, arraySize,
 			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
-
+			   nrThreads, maxGflops, verbose, validateResults);
+#endif // defined(__AVX512F__)
+*/
+    }
+    
     endCommon();
 
     delete[] samples;

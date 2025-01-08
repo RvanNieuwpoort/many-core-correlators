@@ -79,17 +79,19 @@ double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void
 
 void initSamples(float* __restrict__ samples,
 		 const unsigned nrThreads, const unsigned nrTimes, const unsigned nrTimesWidth,
-		 const unsigned nrStations, const unsigned nrChannels, const unsigned arraySize)
+		 const unsigned nrStations, const unsigned nrChannels, const size_t arraySize)
 {
-    for(unsigned t = 0; t<nrThreads; t++) {
-	for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	    for (unsigned stat = 0; stat < nrStations; stat ++) {
-		for (unsigned time = 0; time < nrTimes; time ++) {
+    for(unsigned t = 0; t < nrThreads; t++) {
+	for (unsigned stat = 0; stat < nrStations; stat++) {
+	    for (unsigned channel = 0; channel < nrChannels; channel++) {
+		for (unsigned time = 0; time < nrTimes; time++) {
+		    
 		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
 		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
 		    
 		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
 		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
+	    
 		}
 	    }
 	}
@@ -100,7 +102,7 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 		 const float* __restrict__ visibilities, 
 		 const unsigned nrThreads,
 		 const unsigned nrTimes, const unsigned nrStations,
-		 const unsigned nrChannels, const unsigned arraySize, const unsigned visArraySize)
+		 const unsigned nrChannels, const size_t arraySize, const size_t visArraySize)
 {
     if(checkVisibilities == NULL) {
 	checkVisibilities = new float[nrThreads*visArraySize];
@@ -109,7 +111,7 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 	spawnCorrelatorThreads(CORRELATOR_REFERENCE, runCorrelator, samples,
 			       arraySize, checkVisibilities, visArraySize,
 			       nrTimes, nrStations, nrChannels,
-			       nrThreads, 1, 0.0, false, false);
+			       nrThreads, 0.0, false, false);
     }
     
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
@@ -135,6 +137,8 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 	    }
 	}
     }
+
+    delete[] checkVisibilities;
     
     cout << "result validated OK" << endl;
 }
@@ -147,16 +151,16 @@ void endCommon()
 }
 
 void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
-			    const float* __restrict__ samples, const unsigned arraySize,
-			    float* __restrict__ visibilities, const unsigned visArraySize,
+			    const float* __restrict__ samples, const size_t arraySize,
+			    float* __restrict__ visibilities, const size_t visArraySize,
 			    const unsigned nrTimes, const unsigned nrStations, const unsigned nrChannels,
-			    const unsigned nrThreads, const unsigned iter, double maxFlops,
+			    const unsigned nrThreads, double maxFlops,
 			    const bool verbose, const bool validateResults)
 {
     if(verbose) {
 	cout << "Running correlator \"";
 	printCorrelatorType(correlatorType);
-	cout << "\" with " << nrThreads << " threads, for " << iter << " iterations" << endl;
+	cout << "\" with " << nrThreads << " threads" << endl;
     }
 
     memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
@@ -171,7 +175,6 @@ void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
 	p[t].visibilities = &visibilities[t*visArraySize];
 	p[t].correlatorType = correlatorType;
 	p[t].verbose = verbose;
-	p[t].iter = iter;
     }
 
     auto start_time = chrono::high_resolution_clock::now();
