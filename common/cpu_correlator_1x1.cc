@@ -64,5 +64,5 @@ unsigned long long cpuCorrelator_1x1(const float* __restrict__ samples, float* _
     *bytesLoaded = nrChannels * nrBaselines * nrTimes * 8L * sizeof(float); // samples
     *bytesStored = nrChannels * nrBaselines * 8L * sizeof(float); // visibilities
     
-    return nrChannels * nrBaselines * nrTimes * 16L * 2L;
+    return nrChannels * nrBaselines * nrTimes * 16L * 2L; // #operations
 }

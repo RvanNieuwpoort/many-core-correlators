@@ -71,10 +71,8 @@ double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void
     for(unsigned t=0; t<nrThreads; t++) {
 	gFlops += p[t].gFlops;
     }
-    double maxGflops = (double) gFlops / elapsed; 
-//    cout << "elapsed time in nanoseconds = " << nanos << ", in seconds = " << elapsed << endl;
 
-    return maxGflops;
+    return (double) gFlops / elapsed; 
 }
 
 void initSamples(float* __restrict__ samples,
@@ -102,8 +100,8 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 		 const float* __restrict__ visibilities, 
 		 const unsigned nrThreads,
 		 const unsigned nrTimes, const unsigned nrStations,
-		 const unsigned nrChannels, const size_t arraySize, const size_t visArraySize)
-{
+		 const unsigned nrChannels, const size_t arraySize, const size_t visArraySize) {
+
     if(checkVisibilities == NULL) {
 	checkVisibilities = new float[nrThreads*visArraySize];
 	memset(checkVisibilities, 0, nrThreads*visArraySize*sizeof(float));
@@ -113,35 +111,49 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 			       nrTimes, nrStations, nrChannels,
 			       nrThreads, 0.0, false, false);
     }
-    
-    for (unsigned channel = 0; channel < nrChannels; channel ++) {
-	for (unsigned baseline = 0; baseline < NR_BASELINES(nrStations); baseline++) {
-	    for (unsigned pol0 = 0; pol0 < NR_POLARIZATIONS; pol0 ++) {
-		for (unsigned pol1 = 0; pol1 < NR_POLARIZATIONS; pol1 ++) { 
-		    size_t vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
-		    size_t vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
-			    
-		    if(visibilities[vis_index_real] != checkVisibilities[vis_index_real]) {
-			std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
-			    ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_real] <<
-			    " != " << checkVisibilities[vis_index_real] << std::endl;
-			return;
-		    } 
-		    if(visibilities[vis_index_imag] != checkVisibilities[vis_index_imag]) {
-			std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
-			    ", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_imag] <<
-			    " != " << checkVisibilities[vis_index_imag] << std::endl;
+
+    int result = memcmp(visibilities, checkVisibilities, nrThreads*visArraySize);
+
+    /*
+    */
+
+    if(result == 0) {
+	cout << "result validated OK" << endl;
+    } else {
+	cout << "ERROR validating result" << endl;
+	detailedComparison(visibilities, nrThreads, nrTimes, nrStations, nrChannels, visArraySize);
+    }
+}
+
+void detailedComparison(const float* __restrict__ visibilities, 
+			const unsigned nrThreads, const unsigned nrTimes,
+			const unsigned nrStations, const unsigned nrChannels, const size_t visArraySize) {
+
+    for(unsigned t = 0; t < nrThreads; t++) {
+	for (unsigned channel = 0; channel < nrChannels; channel ++) {
+	    for (unsigned baseline = 0; baseline < NR_BASELINES(nrStations); baseline++) {
+		for (unsigned pol0 = 0; pol0 < NR_POLARIZATIONS; pol0 ++) {
+		    for (unsigned pol1 = 0; pol1 < NR_POLARIZATIONS; pol1 ++) { 
+			size_t vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
+			size_t vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
+			
+			if(visibilities[t*visArraySize + vis_index_real] != checkVisibilities[vis_index_real]) {
+			    std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
+				", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_real] <<
+				" != " << checkVisibilities[vis_index_real] << std::endl;
 			    return;
-		    } 
+			} 
+			if(visibilities[t*visArraySize + vis_index_imag] != checkVisibilities[vis_index_imag]) {
+			    std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
+				", pol = " << pol0 << '/' << pol1 << ": " << visibilities[vis_index_imag] <<
+				" != " << checkVisibilities[vis_index_imag] << std::endl;
+			    return;
+			} 
+		    }
 		}
 	    }
 	}
     }
-
-//    delete[] checkVisibilities;
-//    checkVisibilities = NULL;
-    
-    cout << "result validated OK" << endl;
 }
 
 void endCommon()
@@ -233,7 +245,13 @@ unsigned long long computeMissedBaselines(const float* __restrict__ samples, flo
 					  unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
     unsigned computedBaselines = 0;
-
+    for(unsigned stationY = 0; stationY < nrStations; stationY++) {
+	for(unsigned stationX = 0; stationX <= stationY; stationX++) {
+	    const unsigned baseline = BASELINE(stationX, stationY);
+	    if(missedBaselines[baseline]) computedBaselines++;
+	}
+    }
+    
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
 	for(unsigned stationY = 0; stationY < nrStations; stationY++) {
 	    for(unsigned stationX = 0; stationX <= stationY; stationX++) {
@@ -242,8 +260,6 @@ unsigned long long computeMissedBaselines(const float* __restrict__ samples, flo
 		if(!missedBaselines[baseline]) continue;
 
 //		cout << "computing missed bl " << baseline << endl;
-		    
-		computedBaselines++;
 		
 		float xxr = 0, xxi = 0, xyr = 0, xyi = 0, yxr = 0, yxi = 0, yyr = 0, yyi = 0;
 		size_t index1 = SAMPLE_INDEX(stationX, channel, 0, 0, 0);

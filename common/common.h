@@ -36,6 +36,9 @@ extern unsigned calcNrCells(const unsigned w, const unsigned h, const unsigned n
 
 extern void printCorrelatorType(int correlatorType);
 extern void printResult(const float* visibilities, const unsigned nrChannels, const unsigned nrBaselines);
+extern void detailedComparison(const float* __restrict__ visibilities, 
+			       const unsigned nrThreads, const unsigned nrTimes,
+			       const unsigned nrStations, const unsigned nrChannels, const size_t visArraySize);
 
 extern double computeMaxGflops(const unsigned nrThreads, void *(*runMaxFlopsTest) (void *), void* data);
 

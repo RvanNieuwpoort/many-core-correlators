@@ -23,20 +23,12 @@ static unsigned fillCellToStatTable(unsigned nrStations)
     return nrCells;
 }
 
-static unsigned long long calcNrOps(unsigned nrTimes, unsigned nrStations, unsigned nrChannels,
+static unsigned long long calcNrOps(unsigned nrCells, unsigned nrTimes, unsigned nrStations, unsigned nrChannels,
 				    unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned nrCells, stat0, stat2;
-
-    for (stat2 = nrStations % 2 ? 1 : 2, nrCells = 0; stat2 < nrStations; stat2 += 2) {
-	for (stat0 = 0; stat0 + 2 <= stat2; stat0 += 2, nrCells ++);
-    }
-
     unsigned long long ops = nrChannels * nrCells * nrTimes * 32L * 4L;
-
     *bytesLoaded = nrChannels * nrCells * nrTimes * 4L * 4L * 4L;
     *bytesStored = nrChannels * nrCells * 2L * 4L * 4L;
-
     return ops;
 }
 
@@ -150,7 +142,7 @@ unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, flo
 							  nrTimes, nrTimesWidth, nrStations, nrChannels,
 							  &missedBytesLoaded, &missedBytesStored);
 
-    unsigned long long ops = missedOps + calcNrOps(nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
+    unsigned long long ops = missedOps + calcNrOps(nrCells, nrTimes, nrStations, nrChannels, bytesLoaded, bytesStored);
     *bytesLoaded += missedBytesLoaded;
     *bytesLoaded += missedBytesStored;
     return ops;

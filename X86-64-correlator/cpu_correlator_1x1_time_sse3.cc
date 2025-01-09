@@ -96,23 +96,19 @@ unsigned long long cpuCorrelator_1x1_time_sse3(const float* __restrict__ samples
 #endif
 	    }
 
-	    if (baseline < nrBaselines) {
-		size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+	    size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 
-		// now, we have to sum the 4 values inside the regs.
-		__m128 tmp0  = _mm_hadd_ps(xxr, xxi);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
-		__m128 tmp1  = _mm_hadd_ps(xyr, xyi);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
-		__m128 xx_xy = _mm_hadd_ps(tmp0, tmp1); // xxr, xxi, xyr,xyi
-
-		__m128 tmp2  = _mm_hadd_ps(yxr, yxi);
-		__m128 tmp3  = _mm_hadd_ps(yyr, yyi);
-		__m128 yx_yy = _mm_hadd_ps(tmp2, tmp3);
-
-		_mm_store_ps(visibilities + vis_index + 0, xx_xy);
-		_mm_store_ps(visibilities + vis_index + 4, yx_yy);
-	    } else {
-		    cout << "X" << endl;
-	    }
+	    // now, we have to sum the 4 values inside the regs.
+	    __m128 tmp0  = _mm_hadd_ps(xxr, xxi);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3
+	    __m128 tmp1  = _mm_hadd_ps(xyr, xyi);   // xyr0+xyr1, xyr2+xyr3, xyi0+xyi1, xyi2+xyi3
+	    __m128 xx_xy = _mm_hadd_ps(tmp0, tmp1); // xxr, xxi, xyr,xyi
+	    
+	    __m128 tmp2  = _mm_hadd_ps(yxr, yxi);
+	    __m128 tmp3  = _mm_hadd_ps(yyr, yyi);
+	    __m128 yx_yy = _mm_hadd_ps(tmp2, tmp3);
+	    
+	    _mm_store_ps(visibilities + vis_index + 0, xx_xy);
+	    _mm_store_ps(visibilities + vis_index + 4, yx_yy);
 	}
     }
 

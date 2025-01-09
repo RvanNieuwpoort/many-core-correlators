@@ -4,17 +4,18 @@
 #include <iostream>
 #include <chrono>
 #include <immintrin.h>
+#include <thread>
 
 using namespace std;
 
 static const bool verbose = true;
 static const bool validateResults = true;
-static const unsigned nrStations = 256;
+static const unsigned nrStations = 64;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 400;
-static const unsigned iter = 10000;
-static const unsigned nrThreads = 64;
+static const unsigned nrChannels = 256;
+static const unsigned iter = 1;
+static unsigned nrThreads = 1;
 
 void printVectorType()
 {
@@ -247,23 +248,27 @@ int main()
 	cerr << "Cannot use more than " << MAX_NR_STATIONS << " stations." << endl;
     }
 
-    cout << "using ";
-    printVectorType();
-    cout << " vector extensions" << endl;
+    nrThreads = std::thread::hardware_concurrency(); // may return 0 when not able to detect
+    if(nrThreads == 0) {
+	nrThreads = 1;
+    }
 
-    cout << "timer resolution is " << chrono::high_resolution_clock::period::den << " ticks per second" << endl;
-    cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
+    cout << "Hardware configuration: ";
+    printVectorType();
+    cout << " vector extensions and " << nrThreads << " threads"<< endl;
+
+    cout << "Problem configuration: " << nrStations << " stations, " << nrBaselines <<
 	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, " << iter << " iterations" << endl;
 
     const size_t arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
     const size_t visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS*NR_POLARIZATIONS*2;
 
-    cout << "sample array size = " << arraySize * nrThreads << " elements = " << (((double)arraySize * nrThreads * sizeof(float))/(1024.0*1024.0*1024.0)) << " gbytes, "
-	 << "vis array size = " << visArraySize * nrThreads << " elements = " << (((double)visArraySize * nrThreads * sizeof(float))/(1024.0*1024.0)) << " mbytes" << endl;
+    cout << "Memory: sample array size = " << (((double)arraySize * nrThreads * sizeof(float))/(1024.0*1024.0*1024.0)) << " gbytes, "
+	 << "vis array size = " << (((double)visArraySize * nrThreads * sizeof(float))/(1024.0*1024.0*1024.0)) << " gbytes" << endl;
    
 //    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, 0);
     double maxGflops = (2800.0 * 32 * 8 * 2)/1000.0; // For DAS-6: 2800 Mhz, 32 cores, 8-wide vectors, x2 for FMA
-    cout << "peak flops with " << nrThreads << " threads is: " << maxGflops << " gflops" << std::endl;
+    cout << "peak flops is: " << maxGflops << " gflops" << std::endl;
 
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
