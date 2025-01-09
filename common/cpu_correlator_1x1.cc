@@ -17,11 +17,10 @@ unsigned long long cpuCorrelator_1x1(const float* __restrict__ samples, float* _
 	    for(unsigned int stationX = 0; stationX <= stationY; stationX++) {
 
 		float xxr = 0, xxi = 0, xyr = 0, xyi = 0, yxr = 0, yxi = 0, yyr = 0, yyi = 0;
-		unsigned index1 = SAMPLE_INDEX(stationX, channel, 0, 0, 0);
-		unsigned index2 = SAMPLE_INDEX(stationY, channel, 0, 0, 0);
+		size_t index1 = SAMPLE_INDEX(stationX, channel, 0, 0, 0);
+		size_t index2 = SAMPLE_INDEX(stationY, channel, 0, 0, 0);
 
 		for (unsigned time = 0; time < nrTimes; time ++) {
-
 		    float sample1xr = samples[index1+0];
 		    float sample1xi = samples[index1+1];
 		    float sample1yr = samples[index1+2];
@@ -48,7 +47,7 @@ unsigned long long cpuCorrelator_1x1(const float* __restrict__ samples, float* _
 		}
 		unsigned baseline = BASELINE(stationX, stationY);
 		if (baseline < nrBaselines) {
-		    const unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+		    const size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 		    visibilities[vis_index+0] = xxr;
 		    visibilities[vis_index+1] = xxi;
 		    visibilities[vis_index+2] = xyr;
@@ -63,7 +62,7 @@ unsigned long long cpuCorrelator_1x1(const float* __restrict__ samples, float* _
     }
 
     *bytesLoaded = nrChannels * nrBaselines * nrTimes * 8L * sizeof(float); // samples
-    *bytesStored = nrChannels * nrBaselines * 8L * sizeof(float); // vis
+    *bytesStored = nrChannels * nrBaselines * 8L * sizeof(float); // visibilities
     
     return nrChannels * nrBaselines * nrTimes * 16L * 2L;
 }

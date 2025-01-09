@@ -31,8 +31,8 @@ unsigned long long cpuCorrelator_2x1(const float* __restrict__ samples, float* _
 		float s1yxr = 0.0f, s1yxi = 0.0f;
 		float s1yyr = 0.0f, s1yyi = 0.0f;
 
-		unsigned index0 = SAMPLE_INDEX(stationX,   channel, 0, 0, 0);
-		unsigned index1 = SAMPLE_INDEX(stationX+1, channel, 0, 0, 0);
+		size_t index0 = SAMPLE_INDEX(stationX,   channel, 0, 0, 0);
+		size_t index1 = SAMPLE_INDEX(stationX+1, channel, 0, 0, 0);
 
 		for (unsigned time = 0; time < nrTimes; time ++) {
 		    float sample0xr = samples[index0+0];
@@ -84,7 +84,7 @@ unsigned long long cpuCorrelator_2x1(const float* __restrict__ samples, float* _
 		}
 
 		unsigned baseline = BASELINE(stationX, stationY);
-		unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+		size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 		visibilities[vis_index+0] = s0xxr; 
 		visibilities[vis_index+1] = s0xxi;
 		visibilities[vis_index+2] = s0xyr;

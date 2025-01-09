@@ -10,7 +10,7 @@
 using namespace std;
 
 // used for 1x1 correlator only
-static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
+static unsigned char baselineToStat1[MAX_NR_CELLS], baselineToStat2[MAX_NR_CELLS];
 
 static unsigned fillCellToStatTable(const unsigned nrStations)
 {
@@ -41,8 +41,8 @@ unsigned long long cpuCorrelator_1x1_time_avx512(const float* __restrict__ sampl
 	    unsigned stat1 = baselineToStat1[baseline];
 	    unsigned stat2 = baselineToStat2[baseline];
 
-	    unsigned index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
-	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
+	    size_t index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
+	    size_t index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
 	    __m512 xxr = _mm512_setzero_ps ();
 	    __m512 xxi = _mm512_setzero_ps ();
@@ -85,7 +85,7 @@ unsigned long long cpuCorrelator_1x1_time_avx512(const float* __restrict__ sampl
                 yyi -= sample1yr * sample2yi;
 	    }
 
-	    unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+	    size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 
 	    float res_xxr = _mm512_reduce_add_ps(xxr);
 	    float res_xxi = _mm512_reduce_add_ps(xxi);

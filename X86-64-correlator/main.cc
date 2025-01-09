@@ -1,10 +1,6 @@
 #include "../common/common.h"
 #include "X86-64_correlator.h"
 
-#include <complex>
-#include <cassert>
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <chrono>
 #include <immintrin.h>
@@ -16,7 +12,7 @@ static const bool validateResults = true;
 static const unsigned nrStations = 256;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 375;
+static const unsigned nrChannels = 400;
 static const unsigned iter = 10000;
 static const unsigned nrThreads = 64;
 
@@ -273,47 +269,46 @@ int main()
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
 
     for(size_t i=0; i<iter; i++) {
+	initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
 
-    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
-/*
-    spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
+	spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
 
-    spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-
-    spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-
-    spawnCorrelatorThreads(CORRELATOR_1X1_SSE3, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-
-    spawnCorrelatorThreads(CORRELATOR_1X1_TIME_SSE3, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-*/
-    spawnCorrelatorThreads(CORRELATOR_2X2_SSE3, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-/*
-    spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-
-    spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
-
+#if defined(__SSE3__)
+	spawnCorrelatorThreads(CORRELATOR_1X1_SSE3, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_1X1_TIME_SSE3, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_2X2_SSE3, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
+#endif //  defined(__SSE3__)
 #if defined(__AVX512F__)
-    spawnCorrelatorThreads(CORRELATOR_1X1_TIME_AVX512, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, maxGflops, verbose, validateResults);
+	spawnCorrelatorThreads(CORRELATOR_1X1_TIME_AVX512, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, maxGflops, verbose, validateResults);
 #endif // defined(__AVX512F__)
-*/
     }
     
     endCommon();

@@ -8,7 +8,7 @@
 using namespace std;
 
 // used for 1x1 correlator only
-static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
+static unsigned char baselineToStat1[MAX_NR_CELLS], baselineToStat2[MAX_NR_CELLS];
 
 static unsigned fillCellToStatTable(const unsigned nrStations)
 {
@@ -38,8 +38,8 @@ unsigned long long cpuCorrelator_1x1_time_sse3(const float* __restrict__ samples
 	    unsigned stat1 = baselineToStat1[baseline];
 	    unsigned stat2 = baselineToStat2[baseline];
 
-	    unsigned index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
-	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
+	    size_t index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
+	    size_t index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
 	    __m128 xxr = _mm_setzero_ps ();
 	    __m128 xxi = _mm_setzero_ps ();
@@ -97,7 +97,7 @@ unsigned long long cpuCorrelator_1x1_time_sse3(const float* __restrict__ samples
 	    }
 
 	    if (baseline < nrBaselines) {
-		unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+		size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 
 		// now, we have to sum the 4 values inside the regs.
 		__m128 tmp0  = _mm_hadd_ps(xxr, xxi);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3

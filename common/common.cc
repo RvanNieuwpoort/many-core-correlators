@@ -118,8 +118,8 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 	for (unsigned baseline = 0; baseline < NR_BASELINES(nrStations); baseline++) {
 	    for (unsigned pol0 = 0; pol0 < NR_POLARIZATIONS; pol0 ++) {
 		for (unsigned pol1 = 0; pol1 < NR_POLARIZATIONS; pol1 ++) { 
-		    unsigned vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
-		    unsigned vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
+		    size_t vis_index_real = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 0);
+		    size_t vis_index_imag = VISIBILITIES_INDEX(baseline, channel, pol0, pol1, 1);
 			    
 		    if(visibilities[vis_index_real] != checkVisibilities[vis_index_real]) {
 			std::cout << "ERROR: channel = " << channel << ", baseline = " << baseline <<
@@ -138,7 +138,8 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
 	}
     }
 
-    delete[] checkVisibilities;
+//    delete[] checkVisibilities;
+//    checkVisibilities = NULL;
     
     cout << "result validated OK" << endl;
 }
@@ -245,8 +246,8 @@ unsigned long long computeMissedBaselines(const float* __restrict__ samples, flo
 		computedBaselines++;
 		
 		float xxr = 0, xxi = 0, xyr = 0, xyi = 0, yxr = 0, yxi = 0, yyr = 0, yyi = 0;
-		unsigned index1 = SAMPLE_INDEX(stationX, channel, 0, 0, 0);
-		unsigned index2 = SAMPLE_INDEX(stationY, channel, 0, 0, 0);
+		size_t index1 = SAMPLE_INDEX(stationX, channel, 0, 0, 0);
+		size_t index2 = SAMPLE_INDEX(stationY, channel, 0, 0, 0);
 
 		for (unsigned time = 0; time < nrTimes; time ++) {
 		    float sample1xr = samples[index1+0];
@@ -273,7 +274,7 @@ unsigned long long computeMissedBaselines(const float* __restrict__ samples, flo
 		    index1 += 4;
 		    index2 += 4;
 		}
-		const unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+		const size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 		visibilities[vis_index+0] = xxr;
 		visibilities[vis_index+1] = xxi;
 		visibilities[vis_index+2] = xyr;

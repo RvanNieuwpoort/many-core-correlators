@@ -57,10 +57,10 @@ unsigned long long cpuCorrelator_2x2_time_sse3(const float* __restrict__ samples
 	    unsigned stat0 = cellToStatX[cell];
 	    unsigned stat2 = cellToStatY[cell];
 
-	    unsigned index0 = SAMPLE_INDEX(stat0+0, channel, 0, 0, 0);
-	    unsigned index1 = SAMPLE_INDEX(stat0+1, channel, 0, 0, 0);
-	    unsigned index2 = SAMPLE_INDEX(stat2+0, channel, 0, 0, 0);
-	    unsigned index3 = SAMPLE_INDEX(stat2+1, channel, 0, 0, 0);
+	    size_t index0 = SAMPLE_INDEX(stat0+0, channel, 0, 0, 0);
+	    size_t index1 = SAMPLE_INDEX(stat0+1, channel, 0, 0, 0);
+	    size_t index2 = SAMPLE_INDEX(stat2+0, channel, 0, 0, 0);
+	    size_t index3 = SAMPLE_INDEX(stat2+1, channel, 0, 0, 0);
 
 	    __m128 xxr02 = _mm_setzero_ps ();
 	    __m128 xxi02 = _mm_setzero_ps ();
@@ -199,7 +199,7 @@ unsigned long long cpuCorrelator_2x2_time_sse3(const float* __restrict__ samples
 
 		// now, we have to sum the 4 values inside the regs.
 		__m128 tmp0, tmp1, xx_xy, tmp2, tmp3, yx_yy;
-		unsigned visIndex;
+		size_t visIndex;
 
 		visIndex = VISIBILITIES_INDEX(BASELINE(stat0, stat2), channel, 0, 0, 0);
 		tmp0  = _mm_hadd_ps(xxr02, xxi02);   // xxr0+xxr1, xxr2+xxr3, xxi0+xxi1, xxi2+xxi3

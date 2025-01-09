@@ -8,7 +8,7 @@
 using namespace std;
 
 // used for 1x1 correlator only
-static unsigned char baselineToStat1[64 * 65 / 2], baselineToStat2[64 * 65 / 2];
+static unsigned char baselineToStat1[MAX_NR_CELLS], baselineToStat2[MAX_NR_CELLS];
 
 static unsigned fillCellToStatTable(const unsigned nrStations)
 {
@@ -36,8 +36,8 @@ unsigned long long cpuCorrelator_1x1_sse3(const float* __restrict__ samples, flo
 	    unsigned stat1 = baselineToStat1[baseline];
 	    unsigned stat2 = baselineToStat2[baseline];
 
-	    unsigned index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
-	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
+	    size_t index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
+	    size_t index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
 	    __m128 xxr_xyr_yxr_yyr = _mm_setzero_ps();
 	    __m128 xxi_xyi_yxi_yyi = _mm_setzero_ps();
@@ -61,7 +61,7 @@ unsigned long long cpuCorrelator_1x1_sse3(const float* __restrict__ samples, flo
 		index2 += 4;
 	    }
 	    if (baseline < nrBaselines) {
-		unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+		size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 
 		__m128 vis1tmp = _mm_shuffle_ps(xxr_xyr_yxr_yyr, xxi_xyi_yxi_yyi, _MM_SHUFFLE(3, 2, 3, 2));
 		__m128 vis1    = _mm_shuffle_ps(vis1tmp, vis1tmp, _MM_SHUFFLE(2, 0, 3, 1));

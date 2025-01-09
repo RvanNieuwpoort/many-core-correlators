@@ -43,7 +43,7 @@ static unsigned long long calcNrOps(unsigned nrTimes, unsigned nrStations, unsig
 static inline void store(float* visibilities, unsigned stat0, unsigned stat1, unsigned channel, unsigned nrChannels, __m128 real, __m128 imag)
 {
     unsigned baseline = BASELINE(stat0, stat1);
-    unsigned vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
+    size_t vis_index = VISIBILITIES_INDEX(baseline, channel, 0, 0, 0);
 
     __m128 vis1tmp = _mm_shuffle_ps(real, imag, _MM_SHUFFLE(3, 2, 3, 2));
     __m128 vis1    = _mm_shuffle_ps(vis1tmp, vis1tmp, _MM_SHUFFLE(2, 0, 3, 1));
@@ -72,8 +72,8 @@ unsigned long long cpuCorrelator_2x2_sse3(const float* __restrict__ samples, flo
 	    unsigned stat0 = cellToStatX[cell];
 	    unsigned stat2 = cellToStatY[cell];
 
-	    unsigned index0 = SAMPLE_INDEX(stat0, channel, 0, 0, 0);
-	    unsigned index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
+	    size_t index0 = SAMPLE_INDEX(stat0, channel, 0, 0, 0);
+	    size_t index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
 	    __m128 xxr_xyr_yxr_yyr_02 = _mm_setzero_ps();
 	    __m128 xxi_xyi_yxi_yyi_02 = _mm_setzero_ps();

@@ -147,7 +147,6 @@ void* runCorrelator(void* data)
 {
     CorrelatorParams* p = (CorrelatorParams*) data;
 
-    for(unsigned i=0; i<iter; i++) {
 	switch (p->correlatorType) {
 	case CORRELATOR_REFERENCE:
 	    p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
@@ -165,11 +164,6 @@ void* runCorrelator(void* data)
 	    cout << "illegal correlator" << endl;
 	    exit(66);
 	}
-    }
-
-    p->ops *= iter;
-    p->bytesLoaded *= iter;
-    p->bytesStored *= iter;
 
 #if PRINT_RESULT
     printResult(visibilities, nrChannels, nrBaselines);
@@ -187,8 +181,8 @@ int main()
     cout << "Configuration: " << nrStations << " stations, " << nrBaselines <<
 	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples" << endl;
 
-    const unsigned arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
-    const unsigned visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS* NR_POLARIZATIONS*2;
+    const size_t arraySize = nrStations*nrChannels*nrTimesWidth*NR_POLARIZATIONS*2;
+    const size_t visArraySize = nrBaselines*nrChannels*NR_POLARIZATIONS* NR_POLARIZATIONS*2;
 
     cout << "sample array size = " << ((arraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes, "
 	 << "vis array size = " << ((visArraySize * nrThreads * sizeof(float))/(1024*1024)) << " mbytes" << endl;
@@ -204,19 +198,21 @@ int main()
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
     memset(visibilities, 0, nrThreads*visArraySize*sizeof(float));
 
-    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
-
-    spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
-
-    spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
-
-    spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
-			   visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			   nrThreads, iter, maxGflops, verbose, validateResults);
+    for(unsigned i=0; i<iter; i++) {
+	initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
+	
+	spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, iter, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, iter, maxGflops, verbose, validateResults);
+	
+	spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
+			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
+			       nrThreads, iter, maxGflops, verbose, validateResults);
+    }
 
     endCommon();
     
