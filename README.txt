@@ -1,7 +1,7 @@
 These are example codes for a software correlator. 
 The package includes source code for:
 
-- Intel X86 compatible general purpose platform
+- Intel X86 compatible general purpose platform, with SSE and AVX512 vector instructions.
 - Risc-V with vector extensions
 - The Sony/Toshiba/IBM Cell/B.E. processor (used in the PlayStation 3)
 - NVIDIA graphics processors (GPUs)
