@@ -203,15 +203,15 @@ int main()
 	
 	spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			       nrThreads, iter, maxGflops, verbose, validateResults);
+			       nrThreads, maxGflops, verbose, validateResults);
 	
 	spawnCorrelatorThreads(CORRELATOR_2X1, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			       nrThreads, iter, maxGflops, verbose, validateResults);
+			       nrThreads, maxGflops, verbose, validateResults);
 	
 	spawnCorrelatorThreads(CORRELATOR_2X2, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
-			       nrThreads, iter, maxGflops, verbose, validateResults);
+			       nrThreads, maxGflops, verbose, validateResults);
     }
 
     endCommon();
