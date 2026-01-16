@@ -32,10 +32,10 @@ static unsigned long long calcNrOps(const unsigned nrTimes, const unsigned nrSta
 	for (stat0 = 0; stat0 + 2 <= stat2; stat0 += 3, nrCells ++);
     }
 
-    unsigned long long ops = nrChannels * nrCells * nrTimes * 32L * 6L;
+    unsigned long long ops = (unsigned long long)nrChannels * nrCells * nrTimes * 32L * 6L;
 
-    *bytesLoaded = nrChannels * nrCells * nrTimes * 4L * 4L * 5L;
-    *bytesStored = nrChannels * nrCells * 2L * 4L * 5L;
+    *bytesLoaded = (unsigned long long)nrChannels * nrCells * nrTimes * 4L * 4L * 5L;
+    *bytesStored = (unsigned long long)nrChannels * nrCells * 2L * 4L * 5L;
 
     return ops;
 }

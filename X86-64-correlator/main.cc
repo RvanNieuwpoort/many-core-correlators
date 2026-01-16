@@ -5,6 +5,7 @@
 #include <chrono>
 #include <immintrin.h>
 #include <thread>
+#include <barrier>
 
 using namespace std;
 
@@ -13,9 +14,12 @@ static const bool validateResults = true;
 static const unsigned nrStations = 64;
 static const unsigned nrBaselines = NR_BASELINES(nrStations);
 static const unsigned nrTimes = 768, nrTimesWidth = 768; // 770
-static const unsigned nrChannels = 256;
-static const unsigned iter = 1;
-static unsigned nrThreads = 1;
+static const unsigned nrChannels = 256 * 32;
+static const unsigned iter = 5;
+static unsigned nrThreads = std::thread::hardware_concurrency() ? std::thread::hardware_concurrency() : 1; // may return 0 when not able to detect
+
+static std::barrier sync_point(nrThreads);
+
 
 void printVectorType()
 {
@@ -197,6 +201,10 @@ void* runCorrelator(void* data)
 {
     CorrelatorParams* p = (CorrelatorParams*) data;
 
+    sync_point.arrive_and_wait();
+
+    auto start_time = chrono::high_resolution_clock::now();
+    
     switch (p->correlatorType) {
     case CORRELATOR_REFERENCE:
 	p->ops = referenceCorrelator(p->samples, p->visibilities, nrTimes, nrTimesWidth, nrStations, nrChannels, &p->bytesLoaded, &p->bytesStored);
@@ -234,6 +242,11 @@ void* runCorrelator(void* data)
 	cout << "illegal correlator" << endl;
 	exit(66);
     }
+
+    sync_point.arrive_and_wait();
+
+    auto end_time = chrono::high_resolution_clock::now();
+    p->elapsedNanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
     
 #if PRINT_RESULT
     printResult(visibilities, nrChannels, nrBaselines);
@@ -248,14 +261,9 @@ int main()
 	cerr << "Cannot use more than " << MAX_NR_STATIONS << " stations." << endl;
     }
 
-    nrThreads = std::thread::hardware_concurrency(); // may return 0 when not able to detect
-    if(nrThreads == 0) {
-	nrThreads = 1;
-    }
-
     cout << "Hardware configuration: ";
     printVectorType();
-    cout << " vector extensions and " << nrThreads << " threads"<< endl;
+    cout << " vector extensions, with vectors of width " << VECTOR_WIDTH_IN_FLOATS << " floats, and " << nrThreads << " threads"<< endl;
 
     cout << "Problem configuration: " << nrStations << " stations, " << nrBaselines <<
 	" baselines, " << nrChannels << " channels, " << nrTimes << " time samples, " << iter << " iterations" << endl;
@@ -266,17 +274,18 @@ int main()
     cout << "Memory: sample array size = " << (((double)arraySize * nrThreads * sizeof(float))/(1024.0*1024.0*1024.0)) << " gbytes, "
 	 << "vis array size = " << (((double)visArraySize * nrThreads * sizeof(float))/(1024.0*1024.0*1024.0)) << " gbytes" << endl;
    
-//    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, 0);
-    double maxGflops = (2800.0 * 32 * 8 * 2)/1000.0; // For DAS-6: 2800 Mhz, 32 cores, 8-wide vectors, x2 for FMA
+    double maxGflops = computeMaxGflops(nrThreads, calcMaxFlops, 0);
+    //    double maxGflops = (2800.0 * 32 * 8 * 2)/1000.0; // For DAS-6: 2800 Mhz, 32 cores, 8-wide vectors, x2 for FMA
     cout << "peak flops is: " << maxGflops << " gflops" << std::endl;
 
     float* samples = new (align_val_t{ALIGNMENT}) float[nrThreads*arraySize];
     float* visibilities= new (align_val_t{ALIGNMENT}) float[nrThreads*visArraySize];
+    
+    initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
 
     for(size_t i=0; i<iter; i++) {
-	initSamples(samples, nrThreads, nrTimes, nrTimesWidth, nrStations, nrChannels, arraySize);
-
-	spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
+//#if 0
+    spawnCorrelatorThreads(CORRELATOR_1X1, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			       nrThreads, maxGflops, verbose, validateResults);
 	
@@ -304,11 +313,13 @@ int main()
 	spawnCorrelatorThreads(CORRELATOR_2X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			       nrThreads, maxGflops, verbose, validateResults);
-	
+
 	spawnCorrelatorThreads(CORRELATOR_3X2_TIME_SSE3, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,
 			       nrThreads, maxGflops, verbose, validateResults);
+
 #endif //  defined(__SSE3__)
+//#endif // 0
 #if defined(__AVX512F__)
 	spawnCorrelatorThreads(CORRELATOR_1X1_TIME_AVX512, runCorrelator, samples, arraySize,
 			       visibilities, visArraySize, nrTimes, nrStations, nrChannels,

@@ -8,7 +8,6 @@ using namespace std;
 
 static float* checkVisibilities = NULL;
 
-
 unsigned calcNrCells(const unsigned w, const unsigned h, const unsigned nrStations) 
 {
     unsigned nrCells = 0;
@@ -79,21 +78,20 @@ void initSamples(float* __restrict__ samples,
 		 const unsigned nrThreads, const unsigned nrTimes, const unsigned nrTimesWidth,
 		 const unsigned nrStations, const unsigned nrChannels, const size_t arraySize)
 {
-    for(unsigned t = 0; t < nrThreads; t++) {
 	for (unsigned stat = 0; stat < nrStations; stat++) {
-	    for (unsigned channel = 0; channel < nrChannels; channel++) {
-		for (unsigned time = 0; time < nrTimes; time++) {
-		    
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
-		    
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
-		    samples[t*arraySize + SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
-	    
+		for (unsigned channel = 0; channel < nrChannels; channel++) {
+			for (unsigned time = 0; time < nrTimes; time++) {
+				samples[SAMPLE_INDEX(stat, channel, time, 0, 0)] = 1.0f; // time % 8;
+				samples[SAMPLE_INDEX(stat, channel, time, 0, 1)] = 2.0f; // stat;
+				samples[SAMPLE_INDEX(stat, channel, time, 1, 0)] = 1.0f; // channel;
+				samples[SAMPLE_INDEX(stat, channel, time, 1, 1)] = 2.0f; // 0;
+			}
 		}
-	    }
 	}
-    }
+
+	for(unsigned t = 1; t < nrThreads; t++) {
+		memcpy(&samples[t*arraySize], samples, arraySize);
+	}
 }
 
 void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void *),
@@ -113,10 +111,6 @@ void checkResult(const float* __restrict__ samples, void *(*runCorrelator) (void
     }
 
     int result = memcmp(visibilities, checkVisibilities, nrThreads*visArraySize);
-
-    /*
-    */
-
     if(result == 0) {
 	cout << "result validated OK" << endl;
     } else {
@@ -156,18 +150,12 @@ void detailedComparison(const float* __restrict__ visibilities,
     }
 }
 
-void endCommon()
-{
-	if(checkVisibilities != NULL) {
-		delete [] checkVisibilities;
-	}
-}
-
 void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
 			    const float* __restrict__ samples, const size_t arraySize,
 			    float* __restrict__ visibilities, const size_t visArraySize,
 			    const unsigned nrTimes, const unsigned nrStations, const unsigned nrChannels,
-			    const unsigned nrThreads, double maxFlops,
+			    const unsigned nrThreads,
+			    double maxFlops,
 			    const bool verbose, const bool validateResults)
 {
     if(verbose) {
@@ -190,8 +178,6 @@ void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
 	p[t].verbose = verbose;
     }
 
-    auto start_time = chrono::high_resolution_clock::now();
-
     for(unsigned t=0; t<nrThreads; t++) {
 	if (pthread_create(&threads[t], 0, runCorrelator, &p[t]) != 0) {
 	    std::cout << "could not create thread" << std::endl;
@@ -206,17 +192,17 @@ void spawnCorrelatorThreads(int correlatorType, void *(*runCorrelator) (void *),
 	}
     }
 
-    auto end_time = chrono::high_resolution_clock::now();
-
-    unsigned long long ops=0, bytesLoaded=0, bytesStored=0;
+    unsigned long long bytesLoaded=0, bytesStored=0;
+    unsigned long long ops = 0;
+    unsigned long long nanos = 0;
     for(unsigned t=0; t<nrThreads; t++) {
 	ops += p[t].ops;
 	bytesLoaded += p[t].bytesLoaded;
 	bytesStored += p[t].bytesStored;
+	nanos += p[t].elapsedNanos;
     }
 
-    long long nanos = chrono::duration_cast<chrono::nanoseconds>(end_time - start_time).count();
-    double elapsed = (double) nanos / 1.0E9;
+    double elapsed = (double) nanos / (1.0E9 * nrThreads);
     double flops = (ops / elapsed) / 1000000000.0;
     double efficiency = (flops / maxFlops) * 100.0;
     double gbsLoad = (double) (bytesLoaded / (1024.0 * 1024.0 * 1024.0)) / elapsed;
@@ -303,8 +289,15 @@ unsigned long long computeMissedBaselines(const float* __restrict__ samples, flo
 	}
     }
     
-    *bytesLoaded = nrChannels * computedBaselines * nrTimes * 8L * sizeof(float); // samples
-    *bytesStored = nrChannels * computedBaselines * 8L * sizeof(float); // vis
+    *bytesLoaded = (unsigned long long)nrChannels * computedBaselines * nrTimes * 8L * sizeof(float); // samples
+    *bytesStored = (unsigned long long)nrChannels * computedBaselines * 8L * sizeof(float); // vis
     
-    return nrChannels * computedBaselines * nrTimes * 16L * 2L;
+    return (unsigned long long)nrChannels * computedBaselines * nrTimes * 16L * 2L;
+}
+
+void endCommon()
+{
+	if(checkVisibilities != NULL) {
+		delete [] checkVisibilities;
+	}
 }

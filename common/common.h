@@ -2,6 +2,7 @@
 #define _COMMON_CORRELATOR_H
 
 #include <cstddef> // for size_t
+#include <barrier>
 
 #define CORRELATOR_REFERENCE     1
 #define CORRELATOR_1X1           2
@@ -83,6 +84,7 @@ public:
     const float* __restrict__ samples; 
     float* visibilities;
     unsigned long long ops, bytesLoaded, bytesStored;
+    unsigned long long elapsedNanos;
 };
 
 class FlopTestParams {

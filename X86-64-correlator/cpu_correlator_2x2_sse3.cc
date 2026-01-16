@@ -26,9 +26,9 @@ static unsigned fillCellToStatTable(unsigned nrStations)
 static unsigned long long calcNrOps(unsigned nrCells, unsigned nrTimes, unsigned nrStations, unsigned nrChannels,
 				    unsigned long long* bytesLoaded, unsigned long long* bytesStored)
 {
-    unsigned long long ops = nrChannels * nrCells * nrTimes * 32L * 4L;
-    *bytesLoaded = nrChannels * nrCells * nrTimes * 4L * 4L * 4L;
-    *bytesStored = nrChannels * nrCells * 2L * 4L * 4L;
+    unsigned long long ops = (unsigned long long)nrChannels * nrCells * nrTimes * 32L * 4L;
+    *bytesLoaded = (unsigned long long)nrChannels * nrCells * nrTimes * 4L * 4L * 4L;
+    *bytesStored = (unsigned long long)nrChannels * nrCells * 2L * 4L * 4L;
     return ops;
 }
 

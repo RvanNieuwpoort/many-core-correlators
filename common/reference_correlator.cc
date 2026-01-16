@@ -44,10 +44,10 @@ unsigned long long referenceCorrelator(const float* __restrict__ samples, float*
 	}
     }
 
-    unsigned long long ops = nrChannels * nrBaselines * nrTimes * 16L * 2L;
+    unsigned long long ops = (unsigned long long)nrChannels * nrBaselines * nrTimes * 16.0 * 2.0;
 
-    *bytesLoaded = nrChannels * nrBaselines * nrTimes * 2L * 2L * 6L * sizeof(float); // 2 samples r + i, vis r + i
-    *bytesStored = nrChannels * nrBaselines * nrTimes * 2L * 2L * 2L * sizeof(float); // 2 vis r + i
+    *bytesLoaded = (unsigned long long)nrChannels * nrBaselines * nrTimes * 2L * 2L * 6L * sizeof(float); // 2 samples r + i, vis r + i
+    *bytesStored = (unsigned long long)nrChannels * nrBaselines * nrTimes * 2L * 2L * 2L * sizeof(float); // 2 vis r + i
 
     return ops;
 }

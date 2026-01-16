@@ -195,7 +195,7 @@ unsigned long long cpuCorrelator_2x2(const float* __restrict__ samples, float* _
 							  &missedBytesLoaded, &missedBytesStored);
 
     unsigned nrCells = calcNrCells(2, 2, nrStations);
-    *bytesLoaded = missedBytesLoaded + nrChannels * nrCells * nrTimes * 16L * sizeof(float); // samples
-    *bytesStored = missedBytesStored + nrChannels * nrCells * 8L * 4L * sizeof(float); // visibilities
-    return missedOps + nrChannels * nrCells * nrTimes * 16L * 4L * 2L;
+    *bytesLoaded = missedBytesLoaded + (unsigned long long)nrChannels * nrCells * nrTimes * 16L * sizeof(float); // samples
+    *bytesStored = missedBytesStored + (unsigned long long)nrChannels * nrCells * 8L * 4L * sizeof(float); // visibilities
+    return missedOps + (unsigned long long)nrChannels * nrCells * nrTimes * 16L * 4L * 2L;
 }

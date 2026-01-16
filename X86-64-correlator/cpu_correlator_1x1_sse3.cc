@@ -79,9 +79,9 @@ unsigned long long cpuCorrelator_1x1_sse3(const float* __restrict__ samples, flo
 	}
     }
 
-    unsigned long long ops = nrChannels * nrBaselines * nrTimes * 16L * 2L;
-    *bytesLoaded = nrChannels * nrBaselines * nrTimes * 8 * sizeof(float); // samples
-    *bytesStored = nrChannels * nrBaselines * 8 * sizeof(float); // vis
+    unsigned long long ops = (unsigned long long)nrChannels * nrBaselines * nrTimes * 16L * 2L;
+    *bytesLoaded = (unsigned long long)nrChannels * nrBaselines * nrTimes * 8 * sizeof(float); // samples
+    *bytesStored = (unsigned long long)nrChannels * nrBaselines * 8 * sizeof(float); // vis
     
     return ops;
 }

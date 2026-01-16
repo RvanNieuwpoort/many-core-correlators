@@ -33,9 +33,6 @@ unsigned long long cpuCorrelator_1x1_time_avx512(const float* __restrict__ sampl
 {
     unsigned nrBaselines = fillCellToStatTable(nrStations);
 
-//    __mmask16 mask = _mm512_int2mask(0b01010101);
-
-    
     for (unsigned channel = 0; channel < nrChannels; channel ++) {
 	for (unsigned baseline = 0; baseline < nrBaselines; baseline++) {
 	    unsigned stat1 = baselineToStat1[baseline];
@@ -44,14 +41,14 @@ unsigned long long cpuCorrelator_1x1_time_avx512(const float* __restrict__ sampl
 	    size_t index1 = SAMPLE_INDEX(stat1, channel, 0, 0, 0);
 	    size_t index2 = SAMPLE_INDEX(stat2, channel, 0, 0, 0);
 
-	    __m512 xxr = _mm512_setzero_ps ();
-	    __m512 xxi = _mm512_setzero_ps ();
-	    __m512 xyr = _mm512_setzero_ps ();
-	    __m512 xyi = _mm512_setzero_ps ();
-	    __m512 yxr = _mm512_setzero_ps ();
-	    __m512 yxi = _mm512_setzero_ps ();
-	    __m512 yyr = _mm512_setzero_ps ();
-	    __m512 yyi = _mm512_setzero_ps ();
+	    __m512 xxr = _mm512_setzero_ps();
+	    __m512 xxi = _mm512_setzero_ps();
+	    __m512 xyr = _mm512_setzero_ps();
+	    __m512 xyi = _mm512_setzero_ps();
+	    __m512 yxr = _mm512_setzero_ps();
+	    __m512 yxi = _mm512_setzero_ps();
+	    __m512 yyr = _mm512_setzero_ps();
+	    __m512 yyi = _mm512_setzero_ps();
 
 	    // assume nrTimes is divisable by vector width
 	    for (unsigned time = 0; time < nrTimes; time += VECTOR_WIDTH_IN_FLOATS) {
@@ -107,10 +104,10 @@ unsigned long long cpuCorrelator_1x1_time_avx512(const float* __restrict__ sampl
 	}
     }
 
-    *bytesLoaded = nrChannels * nrBaselines * nrTimes * 8 * sizeof(float); // samples
-    *bytesStored = nrChannels * nrBaselines * 8 * sizeof(float); // vis
+    *bytesLoaded = (unsigned long long)nrChannels * nrBaselines * nrTimes * 8L * sizeof(float); // samples
+    *bytesStored = (unsigned long long)nrChannels * nrBaselines * 8L * sizeof(float); // vis
 
-    unsigned long long ops = nrChannels * nrBaselines * nrTimes * 16L * 2L;
+    unsigned long long ops = (unsigned long long)nrChannels * nrBaselines * nrTimes * 16L * 2L;
     return ops;
 }
 
